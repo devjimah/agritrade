@@ -17,6 +17,7 @@ if (jwtSecret.length < 32) {
 }
 
 const env = {
+  NODE_ENV: process.env.NODE_ENV ?? "development",
   PORT: process.env.PORT ?? "5000",
   MONGODB_URI: required("MONGODB_URI"),
   JWT_SECRET: jwtSecret,

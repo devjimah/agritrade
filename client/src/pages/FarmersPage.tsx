@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { Plus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -154,7 +155,11 @@ export function FarmersPage() {
               <TableBody>
                 {farmers.map((farmer) => (
                   <TableRow key={farmer._id}>
-                    <TableCell className="font-medium">{farmer.fullName}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link to={`/farmers/${farmer._id}`} className="hover:underline">
+                        {farmer.fullName}
+                      </Link>
+                    </TableCell>
                     <TableCell>{farmer.phone}</TableCell>
                     <TableCell>{farmer.village || "—"}</TableCell>
                     <TableCell className="max-w-xs truncate text-muted-foreground">

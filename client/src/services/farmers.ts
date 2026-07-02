@@ -33,6 +33,11 @@ export async function listFarmers(params: {
   return res.data.data;
 }
 
+export async function getFarmer(id: string): Promise<Farmer> {
+  const res = await api.get(`/farmers/${id}`);
+  return res.data.data.farmer;
+}
+
 export async function createFarmer(input: FarmerInput): Promise<Farmer> {
   const res = await api.post("/farmers", input);
   return res.data.data.farmer;

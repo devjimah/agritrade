@@ -1,13 +1,15 @@
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
 
 process.env.MONGODB_URI = process.env.MONGODB_URI ?? "mongodb://localhost:27017/unused";
 process.env.JWT_SECRET = process.env.JWT_SECRET ?? "test-secret-test-secret-test-secret-1234";
 
-let mongo: MongoMemoryServer | null = null;
+// Replica set (not standalone): financial services use multi-document
+// transactions, which MongoDB only supports on replica sets.
+let mongo: MongoMemoryReplSet | null = null;
 
 export async function setupTestDb(): Promise<void> {
-  mongo = await MongoMemoryServer.create();
+  mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   await mongoose.connect(mongo.getUri());
 }
 

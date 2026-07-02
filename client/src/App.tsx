@@ -5,6 +5,7 @@ import { AppLayout } from "@/layouts/AppLayout";
 import { LoginPage } from "@/pages/LoginPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { FarmersPage } from "@/pages/FarmersPage";
+import { FarmerDetailPage } from "@/pages/FarmerDetailPage";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/farmers" element={<FarmersPage />} />
+              <Route path="/farmers/:id" element={<FarmerDetailPage />} />
             </Route>
           </Route>
         </Routes>
