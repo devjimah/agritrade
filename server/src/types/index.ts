@@ -10,6 +10,13 @@ export interface IUser {
   role: UserRole;
 }
 
+export interface IFarmer {
+  fullName: string;
+  phone: string;
+  village?: string;
+  notes?: string;
+}
+
 export interface JwtPayload {
   sub: string; // user id
   role: UserRole;
