@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 
 process.env.MONGODB_URI = "mongodb://localhost:27017/agritrade-test";
-process.env.JWT_SECRET = "test-secret";
+process.env.JWT_SECRET = "test-secret-test-secret-test-secret-1234";
 
 describe("app", () => {
   let app: import("express").Express;

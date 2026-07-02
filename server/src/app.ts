@@ -7,6 +7,10 @@ import routes from "./routes";
 
 const app = express();
 
+// Required when deployed behind a reverse proxy (Render/Railway/nginx) so
+// express-rate-limit sees real client IPs instead of the proxy's.
+if (env.TRUST_PROXY) app.set("trust proxy", 1);
+
 app.use(helmet());
 app.use(
   cors({

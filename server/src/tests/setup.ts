@@ -2,7 +2,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
 
 process.env.MONGODB_URI = process.env.MONGODB_URI ?? "mongodb://localhost:27017/unused";
-process.env.JWT_SECRET = process.env.JWT_SECRET ?? "test-secret";
+process.env.JWT_SECRET = process.env.JWT_SECRET ?? "test-secret-test-secret-test-secret-1234";
 
 let mongo: MongoMemoryServer | null = null;
 

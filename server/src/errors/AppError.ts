@@ -1,8 +1,13 @@
+export interface ErrorDetail {
+  path: string;
+  message: string;
+}
+
 export class AppError extends Error {
   statusCode: number;
-  details: object[];
+  details: ErrorDetail[];
 
-  constructor(message: string, statusCode = 400, details: object[] = []) {
+  constructor(message: string, statusCode = 400, details: ErrorDetail[] = []) {
     super(message);
     this.statusCode = statusCode;
     this.details = details;

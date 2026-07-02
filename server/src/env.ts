@@ -10,10 +10,17 @@ function required(name: string): string {
   return value;
 }
 
+const jwtSecret = required("JWT_SECRET");
+if (jwtSecret.length < 32) {
+  console.error("JWT_SECRET must be at least 32 characters");
+  process.exit(1);
+}
+
 const env = {
   PORT: process.env.PORT ?? "5000",
   MONGODB_URI: required("MONGODB_URI"),
-  JWT_SECRET: required("JWT_SECRET"),
+  JWT_SECRET: jwtSecret,
+  TRUST_PROXY: process.env.TRUST_PROXY === "true",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? "1d",
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN ?? "http://localhost:5173",
 };

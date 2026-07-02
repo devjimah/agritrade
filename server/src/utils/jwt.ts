@@ -9,7 +9,7 @@ export function signToken(payload: JwtPayload): string {
 }
 
 export function verifyToken(token: string): JwtPayload {
-  const decoded = jwt.verify(token, env.JWT_SECRET);
+  const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] });
   if (typeof decoded === "string" || !decoded.sub || !decoded.role) {
     throw new Error("Malformed token payload");
   }

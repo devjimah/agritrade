@@ -34,6 +34,22 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
+  if (err instanceof MongooseError.CastError) {
+    res.status(400).json({
+      success: false,
+      error: { message: `Invalid value for ${err.path}`, errors: [] },
+    });
+    return;
+  }
+
+  if (typeof err === "object" && err !== null && (err as { code?: number }).code === 11000) {
+    res.status(409).json({
+      success: false,
+      error: { message: "A record with these details already exists", errors: [] },
+    });
+    return;
+  }
+
   console.error("Unhandled error:", err);
   res.status(500).json({
     success: false,

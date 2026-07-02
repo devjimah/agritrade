@@ -1,5 +1,5 @@
 import { Request } from "express";
-import { Types } from "mongoose";
+import { HydratedDocument, Types } from "mongoose";
 
 export type UserRole = "admin" | "staff";
 
@@ -17,4 +17,6 @@ export interface JwtPayload {
 
 export interface AuthRequest extends Request {
   user?: { id: Types.ObjectId; role: UserRole };
+  /** Full user document loaded by requireAuth; avoids a second fetch in handlers. */
+  userDoc?: HydratedDocument<IUser>;
 }

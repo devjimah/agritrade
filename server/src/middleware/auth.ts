@@ -21,6 +21,7 @@ export async function requireAuth(req: AuthRequest, _res: Response, next: NextFu
     if (!user) throw new AppError("Not authenticated", 401);
 
     req.user = { id: user._id as Types.ObjectId, role: user.role };
+    req.userDoc = user;
     next();
   } catch (err) {
     next(err);

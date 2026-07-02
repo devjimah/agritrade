@@ -3,8 +3,8 @@ import { connectDb } from "../config/db";
 import { UserModel } from "../models/user.model";
 import { hashPassword } from "../utils/password";
 
-const ADMIN_EMAIL = "admin@agritrade.local";
-const ADMIN_PASSWORD = "ChangeMe123!";
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@agritrade.local";
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!";
 
 async function seed() {
   await connectDb();
