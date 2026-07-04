@@ -91,6 +91,22 @@ export interface ICreditSale {
   notes?: string;
 }
 
+export const PAYMENT_METHODS = ["cash", "mobile_money", "bank"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export interface IPayment {
+  creditSaleId: Types.ObjectId;
+  /** Denormalized from the sale so payments are queryable per customer. */
+  customerId: Types.ObjectId;
+  /** Pesewas. */
+  amountPaid: number;
+  paymentMethod: PaymentMethod;
+  recordedBy: Types.ObjectId;
+  /** Client-generated UUID; unique index prevents double-submits (rule 7). */
+  idempotencyKey: string;
+  notes?: string;
+}
+
 export const TRANSACTION_TYPES = [
   "advance_given",
   "repayment_received",

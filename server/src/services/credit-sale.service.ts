@@ -17,7 +17,7 @@ export interface CreditSaleListResult {
 }
 
 export interface CustomerDebtSummary {
-  /** Pesewas still owed across non-paid sales. */
+  /** Pesewas still owed: sum of balanceRemaining over all sales (paid carry 0). */
   outstandingBalance: number;
   totalSales: number;
   unpaidSales: number;

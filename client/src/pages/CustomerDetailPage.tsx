@@ -24,6 +24,8 @@ import { createCreditSale, getDebtSummary, listCreditSales } from "@/services/cr
 import type { CreditSale, DebtSummary, PaymentStatus } from "@/services/creditSales";
 import { getCustomer } from "@/services/customers";
 import type { Customer } from "@/services/customers";
+import { createPayment, PAYMENT_METHOD_LABELS } from "@/services/payments";
+import type { PaymentMethod } from "@/services/payments";
 import { getInventory } from "@/services/inventory";
 import type { InventoryItem } from "@/services/inventory";
 
@@ -59,6 +61,14 @@ export function CustomerDetailPage() {
   // One key per dialog-open: a double-click or retry resubmits the SAME key,
   // which the server answers with the original sale instead of a duplicate.
   const [saleKey, setSaleKey] = useState("");
+
+  const [paySale, setPaySale] = useState<CreditSale | null>(null);
+  const [payAmountGHS, setPayAmountGHS] = useState("");
+  const [payMethod, setPayMethod] = useState<PaymentMethod>("cash");
+  const [payNotes, setPayNotes] = useState("");
+  const [payError, setPayError] = useState("");
+  const [paySaving, setPaySaving] = useState(false);
+  const [payKey, setPayKey] = useState("");
 
   // Same stale-response guard as the other detail page: /customers/A ->
   // /customers/B does not remount, so slow responses must not clobber B.
@@ -142,6 +152,46 @@ export function CustomerDetailPage() {
       setFormError(getApiErrorMessage(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  function openRecordPayment(sale: CreditSale) {
+    setPaySale(sale);
+    setPayAmountGHS("");
+    setPayMethod("cash");
+    setPayNotes("");
+    setPayError("");
+    setPayKey(crypto.randomUUID());
+  }
+
+  async function handlePaySubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!paySale) return;
+    const pesewas = parseGHSToPesewas(payAmountGHS);
+    if (pesewas === null) {
+      setPayError("Enter a valid amount in GHS, e.g. 500 or 500.50");
+      return;
+    }
+    if (pesewas > paySale.balanceRemaining) {
+      setPayError(`Only ${formatGHS(paySale.balanceRemaining)} remains on this sale`);
+      return;
+    }
+    setPaySaving(true);
+    setPayError("");
+    try {
+      await createPayment({
+        creditSaleId: paySale._id,
+        amountPaid: pesewas,
+        paymentMethod: payMethod,
+        idempotencyKey: payKey,
+        notes: payNotes,
+      });
+      setPaySale(null);
+      await load();
+    } catch (err) {
+      setPayError(getApiErrorMessage(err));
+    } finally {
+      setPaySaving(false);
     }
   }
 
@@ -235,6 +285,7 @@ export function CustomerDetailPage() {
                   <TableHead>Paid</TableHead>
                   <TableHead>Balance</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-20" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -256,6 +307,13 @@ export function CustomerDetailPage() {
                         {STATUS_LABELS[sale.paymentStatus]}
                       </span>
                     </TableCell>
+                    <TableCell>
+                      {sale.paymentStatus !== "paid" && (
+                        <Button variant="outline" size="sm" onClick={() => openRecordPayment(sale)}>
+                          Pay
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -263,6 +321,55 @@ export function CustomerDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={paySale !== null} onClose={() => setPaySale(null)} title="Record payment">
+        {paySale && (
+          <form onSubmit={handlePaySubmit} className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {CROP_LABELS[paySale.cropType]} sale of {formatGHS(paySale.totalAmount)} —{" "}
+              {formatGHS(paySale.balanceRemaining)} remaining.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="payAmount">Amount (GHS)</Label>
+              <Input
+                id="payAmount"
+                required
+                inputMode="decimal"
+                placeholder="500.00"
+                value={payAmountGHS}
+                onChange={(e) => setPayAmountGHS(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="payMethod">Payment method</Label>
+              <Select
+                id="payMethod"
+                value={payMethod}
+                onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}
+              >
+                {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((method) => (
+                  <option key={method} value={method}>
+                    {PAYMENT_METHOD_LABELS[method]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="payNotes">Notes</Label>
+              <Input id="payNotes" value={payNotes} onChange={(e) => setPayNotes(e.target.value)} />
+            </div>
+            {payError && <p className="text-sm text-red-600">{payError}</p>}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setPaySale(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={paySaving}>
+                {paySaving ? "Saving..." : "Record payment"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Dialog>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} title="Record credit sale">
         <form onSubmit={handleSubmit} className="space-y-4">

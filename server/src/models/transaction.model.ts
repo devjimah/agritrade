@@ -36,7 +36,7 @@ const transactionSchema = new Schema<ITransaction>(
       // A commodity entry with no bags would record nothing moving.
       required: [
         function (this: { type?: string }) {
-          return this.type === "repayment_received";
+          return this.type === "repayment_received" || this.type === "credit_sale";
         },
         "Commodity transactions must record bags moved",
       ],
