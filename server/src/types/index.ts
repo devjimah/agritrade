@@ -69,6 +69,28 @@ export interface IInventory {
   updatedAt?: Date;
 }
 
+export const PAYMENT_STATUSES = ["unpaid", "partial", "paid"] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+/** All money fields are integer pesewas. */
+export interface ICreditSale {
+  customerId: Types.ObjectId;
+  cropType: CropType;
+  bagsTaken: number;
+  /** Pesewas per bag. */
+  pricePerBag: number;
+  /** Pesewas; always bagsTaken * pricePerBag, computed server-side. */
+  totalAmount: number;
+  /** Denormalized running total, updated atomically with each payment. */
+  amountPaid: number;
+  /** Denormalized totalAmount - amountPaid, kept in the same atomic update. */
+  balanceRemaining: number;
+  paymentStatus: PaymentStatus;
+  /** Client-generated UUID; unique index prevents double-submits (rule 7). */
+  idempotencyKey: string;
+  notes?: string;
+}
+
 export const TRANSACTION_TYPES = [
   "advance_given",
   "repayment_received",
@@ -83,6 +105,7 @@ export interface ITransaction {
   referenceId: Types.ObjectId;
   /** The farmer or customer counterparty, when there is one (per-party ledger views). */
   farmerId?: Types.ObjectId;
+  customerId?: Types.ObjectId;
   /**
    * Pesewas; direction implied by type. Zero only for commodity movements
    * (repayment_received), which carry `bags` instead.

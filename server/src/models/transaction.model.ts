@@ -13,6 +13,7 @@ const transactionSchema = new Schema<ITransaction>(
     type: { type: String, enum: TRANSACTION_TYPES, required: true },
     referenceId: { type: Schema.Types.ObjectId, required: true, index: true },
     farmerId: { type: Schema.Types.ObjectId, ref: "Farmer", index: true },
+    customerId: { type: Schema.Types.ObjectId, ref: "Customer", index: true },
     // Integer pesewas; direction is implied by `type`. Zero is allowed only
     // for commodity movements (repayment_received), which carry `bags`.
     amount: {

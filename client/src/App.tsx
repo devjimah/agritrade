@@ -8,6 +8,7 @@ import { FarmersPage } from "@/pages/FarmersPage";
 import { FarmerDetailPage } from "@/pages/FarmerDetailPage";
 import { InventoryPage } from "@/pages/InventoryPage";
 import { CustomersPage } from "@/pages/CustomersPage";
+import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
               <Route path="/farmers" element={<FarmersPage />} />
               <Route path="/farmers/:id" element={<FarmerDetailPage />} />
               <Route path="/customers" element={<CustomersPage />} />
+              <Route path="/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/inventory" element={<InventoryPage />} />
             </Route>
           </Route>

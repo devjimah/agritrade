@@ -5,6 +5,7 @@ import advanceRoute from "./advance.route";
 import repaymentRoute from "./repayment.route";
 import inventoryRoute from "./inventory.route";
 import customerRoute from "./customer.route";
+import creditSaleRoute from "./credit-sale.route";
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use("/advances", advanceRoute);
 router.use("/repayments", repaymentRoute);
 router.use("/inventory", inventoryRoute);
 router.use("/customers", customerRoute);
+router.use("/credit-sales", creditSaleRoute);
 
 export default router;

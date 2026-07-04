@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { MapPin, Pencil, Phone, Plus, Search, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -160,7 +161,14 @@ export function CustomersPage() {
               <TableBody>
                 {customers.map((customer) => (
                   <TableRow key={customer._id}>
-                    <TableCell className="font-medium">{customer.fullName}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        to={`/customers/${customer._id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {customer.fullName}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       <span className="inline-flex items-center gap-2">
                         <Phone className="h-3.5 w-3.5 text-muted-foreground" />
