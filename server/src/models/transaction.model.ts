@@ -12,12 +12,35 @@ const transactionSchema = new Schema<ITransaction>(
   {
     type: { type: String, enum: TRANSACTION_TYPES, required: true },
     referenceId: { type: Schema.Types.ObjectId, required: true, index: true },
-    // Integer pesewas, always positive; direction is implied by `type`.
+    farmerId: { type: Schema.Types.ObjectId, ref: "Farmer", index: true },
+    // Integer pesewas; direction is implied by `type`. Zero is allowed only
+    // for commodity movements (repayment_received), which carry `bags`.
     amount: {
       type: Number,
       required: true,
-      min: [1, "Amount must be positive"],
-      validate: { validator: Number.isInteger, message: "Amount must be integer pesewas" },
+      min: [0, "Amount cannot be negative"],
+      validate: {
+        // `this` is the document on create — the only write path for the
+        // append-only ledger (update validators never run here).
+        validator(this: unknown, v: number) {
+          if (!Number.isInteger(v)) return false;
+          const doc = this as Partial<ITransaction> | undefined;
+          return v >= 1 || doc?.type === "repayment_received";
+        },
+        message: "Amount must be positive integer pesewas (zero only for commodity movements)",
+      },
+    },
+    bags: {
+      type: Number,
+      // A commodity entry with no bags would record nothing moving.
+      required: [
+        function (this: { type?: string }) {
+          return this.type === "repayment_received";
+        },
+        "Commodity transactions must record bags moved",
+      ],
+      min: [1, "Bags must be positive"],
+      validate: { validator: Number.isInteger, message: "Bags must be a whole number" },
     },
     description: { type: String, required: true, trim: true, maxlength: 300 },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },

@@ -202,6 +202,20 @@ describe("GET /api/advances/summary", () => {
     expect(res.body.data.summary.pendingAdvances).toBe(2);
   });
 
+  it("pro-rates outstanding by bags repaid on partial advances", async () => {
+    // 30,000 pesewas over 10 expected bags, 9 already delivered -> 3,000 left.
+    await FarmerAdvanceModel.create({
+      farmerId,
+      amountGiven: 30_000,
+      cropType: "beans",
+      expectedBags: 10,
+      bagsRepaid: 9,
+      repaymentStatus: "partial",
+    });
+    const res = await request(app).get(`/api/advances/summary?farmerId=${farmerId}`).set(auth());
+    expect(res.body.data.summary.outstandingAmount).toBe(3_000);
+  });
+
   it("returns zeros for a farmer with no advances", async () => {
     const res = await request(app).get(`/api/advances/summary?farmerId=${farmerId}`).set(auth());
     expect(res.status).toBe(200);

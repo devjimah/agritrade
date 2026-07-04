@@ -64,7 +64,10 @@ export async function getFarmerById(id: string): Promise<FarmerDocument> {
 export async function updateFarmer(id: string, input: UpdateFarmerInput): Promise<FarmerDocument> {
   let farmer;
   try {
-    farmer = await FarmerModel.findByIdAndUpdate(id, input, { new: true, runValidators: true });
+    farmer = await FarmerModel.findByIdAndUpdate(id, input, {
+      returnDocument: "after",
+      runValidators: true,
+    });
   } catch (err) {
     if (isDuplicateKeyError(err)) throw DUPLICATE_PHONE();
     throw err;

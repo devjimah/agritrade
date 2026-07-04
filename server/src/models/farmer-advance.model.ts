@@ -20,6 +20,15 @@ const farmerAdvanceSchema = new Schema<IFarmerAdvance>(
       min: [1, "Expected bags must be at least 1"],
       validate: { validator: Number.isInteger, message: "Expected bags must be a whole number" },
     },
+    // Running total of bags received against this advance; only ever mutated
+    // atomically (guarded $inc) inside the repayment transaction.
+    bagsRepaid: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: [0, "Bags repaid cannot be negative"],
+      validate: { validator: Number.isInteger, message: "Bags repaid must be a whole number" },
+    },
     repaymentStatus: {
       type: String,
       enum: REPAYMENT_STATUSES,

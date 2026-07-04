@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --background: oklch(0.982 0.014 92);
+  --foreground: oklch(0.22 0.035 74);
+  --card: oklch(0.998 0.005 100);
+  --card-foreground: oklch(0.22 0.035 74);
+  --primary: oklch(0.39 0.098 137);
+  --primary-foreground: oklch(0.985 0.018 105);
+  --secondary: oklch(0.92 0.038 88);
+  --secondary-foreground: oklch(0.28 0.051 82);
+  --muted: oklch(0.94 0.026 95);
+  --muted-foreground: oklch(0.47 0.034 76);
+  --accent: oklch(0.86 0.12 84);
+  --accent-foreground: oklch(0.23 0.045 74);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --radius: 0.625rem;
+  --border: oklch(0.86 0.032 86);
+  --input: oklch(0.84 0.032 86);
+  --ring: oklch(0.53 0.115 137);
+  --radius: 0.5rem;
 }
 
 @theme inline {
@@ -53,5 +53,20 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family:
+      "Aptos",
+      "Segoe UI",
+      system-ui,
+      sans-serif;
+    letter-spacing: 0;
+  }
+}
+
+@layer utilities {
+  .field-pattern {
+    background-image:
+      linear-gradient(color-mix(in oklab, var(--color-border) 70%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in oklab, var(--color-border) 70%, transparent) 1px, transparent 1px);
+    background-size: 28px 28px;
   }
 }

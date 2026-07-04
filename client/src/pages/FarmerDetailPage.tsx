@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ComponentType, FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, CircleDollarSign, PackageCheck, Phone, Plus, Wheat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
@@ -23,6 +24,7 @@ import { createAdvance, getAdvanceSummary, listAdvances } from "@/services/advan
 import type { Advance, AdvanceSummary, RepaymentStatus } from "@/services/advances";
 import { getFarmer } from "@/services/farmers";
 import type { Farmer } from "@/services/farmers";
+import { createRepayment } from "@/services/repayments";
 
 const STATUS_LABELS: Record<RepaymentStatus, string> = {
   pending: "Pending",
@@ -32,7 +34,7 @@ const STATUS_LABELS: Record<RepaymentStatus, string> = {
 
 const STATUS_STYLES: Record<RepaymentStatus, string> = {
   pending: "bg-amber-100 text-amber-800",
-  partial: "bg-blue-100 text-blue-800",
+  partial: "bg-sky-100 text-sky-800",
   completed: "bg-green-100 text-green-800",
 };
 
@@ -53,8 +55,13 @@ export function FarmerDetailPage() {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Same stale-response guard as FarmersPage: /farmers/A -> /farmers/B does
-  // not remount this component, so a slow A response must not clobber B.
+  const [repayAdvance, setRepayAdvance] = useState<Advance | null>(null);
+  const [repayBags, setRepayBags] = useState("");
+  const [repayNotes, setRepayNotes] = useState("");
+  const [repayError, setRepayError] = useState("");
+  const [repaySaving, setRepaySaving] = useState(false);
+  const [repayKey, setRepayKey] = useState("");
+
   const requestSeq = useRef(0);
 
   const load = useCallback(async () => {
@@ -94,7 +101,7 @@ export function FarmerDetailPage() {
     setDialogOpen(true);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!id) return;
     const pesewas = parseGHSToPesewas(amountGHS);
@@ -120,45 +127,93 @@ export function FarmerDetailPage() {
     }
   }
 
-  if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  if (pageError) return <p className="text-sm text-red-600">{pageError}</p>;
+  function openRepay(advance: Advance) {
+    setRepayAdvance(advance);
+    setRepayBags("");
+    setRepayNotes("");
+    setRepayError("");
+    setRepayKey(crypto.randomUUID());
+  }
+
+  async function handleRepaySubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!repayAdvance) return;
+    const bags = Number(repayBags);
+    const remaining = repayAdvance.expectedBags - repayAdvance.bagsRepaid;
+    if (!Number.isInteger(bags) || bags < 1) {
+      setRepayError("Bags must be a whole number of at least 1");
+      return;
+    }
+    if (bags > remaining) {
+      setRepayError(`Only ${remaining} bag(s) remain on this advance`);
+      return;
+    }
+    setRepaySaving(true);
+    setRepayError("");
+    try {
+      await createRepayment({
+        advanceId: repayAdvance._id,
+        bagsSupplied: bags,
+        idempotencyKey: repayKey,
+        notes: repayNotes,
+      });
+      setRepayAdvance(null);
+      await load();
+    } catch (err) {
+      setRepayError(getApiErrorMessage(err));
+    } finally {
+      setRepaySaving(false);
+    }
+  }
+
+  if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
+  if (pageError) return <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{pageError}</p>;
   if (!farmer) return null;
 
+  const expectedBagsTotal = advances.reduce((sum, advance) => sum + advance.expectedBags, 0);
+  const repaidBagsTotal = advances.reduce((sum, advance) => sum + advance.bagsRepaid, 0);
+
   return (
-    <div className="space-y-4">
-      <Link to="/farmers" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+    <div className="space-y-5">
+      <Link to="/farmers" className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to farmers
       </Link>
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold">{farmer.fullName}</h2>
-          <p className="text-sm text-muted-foreground">
-            {farmer.phone}
-            {farmer.village ? ` · ${farmer.village}` : ""}
-          </p>
-          {farmer.notes && <p className="mt-1 text-sm text-muted-foreground">{farmer.notes}</p>}
-        </div>
-        <Button onClick={openRecordAdvance}>
-          <Plus className="mr-1 h-4 w-4" /> Record advance
-        </Button>
-      </div>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">
-            Advances
-            {summary && (
-              <span className="ml-2 font-normal text-muted-foreground">
-                {formatGHS(summary.outstandingAmount)} outstanding
+      <section className="rounded-lg border border-primary/10 bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium uppercase text-primary">Farmer account</p>
+            <h2 className="mt-2 text-3xl font-semibold">{farmer.fullName}</h2>
+            <p className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <Phone className="h-4 w-4" /> {farmer.phone}
               </span>
-            )}
-          </CardTitle>
-          {advanceTotal > advances.length && (
-            <p className="text-xs text-muted-foreground">
-              Showing latest {advances.length} of {advanceTotal} advances.
+              {farmer.village && <span>{farmer.village}</span>}
             </p>
-          )}
+            {farmer.notes && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{farmer.notes}</p>}
+          </div>
+          <Button onClick={openRecordAdvance}>
+            <Plus className="mr-1 h-4 w-4" /> Record advance
+          </Button>
+        </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <SummaryCard icon={CircleDollarSign} label="Outstanding advance" value={formatGHS(summary?.outstandingAmount ?? 0)} />
+        <SummaryCard icon={Wheat} label="Expected bags" value={expectedBagsTotal} />
+        <SummaryCard icon={PackageCheck} label="Bags repaid" value={`${repaidBagsTotal}/${expectedBagsTotal}`} />
+      </section>
+
+      <Card className="overflow-hidden">
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="text-base">Advances</CardTitle>
+            {advanceTotal > advances.length && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Showing latest {advances.length} of {advanceTotal} advances.
+              </p>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {advances.length === 0 ? (
@@ -170,9 +225,10 @@ export function FarmerDetailPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Crop</TableHead>
-                  <TableHead>Expected bags</TableHead>
+                  <TableHead>Bags repaid</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Notes</TableHead>
+                  <TableHead className="w-24" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -181,7 +237,9 @@ export function FarmerDetailPage() {
                     <TableCell>{new Date(advance.createdAt).toLocaleDateString("en-GH")}</TableCell>
                     <TableCell className="font-medium">{formatGHS(advance.amountGiven)}</TableCell>
                     <TableCell>{CROP_LABELS[advance.cropType]}</TableCell>
-                    <TableCell>{advance.expectedBags}</TableCell>
+                    <TableCell>
+                      {advance.bagsRepaid} / {advance.expectedBags}
+                    </TableCell>
                     <TableCell>
                       <span
                         className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[advance.repaymentStatus]}`}
@@ -190,7 +248,14 @@ export function FarmerDetailPage() {
                       </span>
                     </TableCell>
                     <TableCell className="max-w-xs truncate text-muted-foreground">
-                      {advance.notes || "—"}
+                      {advance.notes || "-"}
+                    </TableCell>
+                    <TableCell>
+                      {advance.repaymentStatus !== "completed" && (
+                        <Button variant="outline" size="sm" onClick={() => openRepay(advance)}>
+                          Repay
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -199,6 +264,43 @@ export function FarmerDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={repayAdvance !== null} onClose={() => setRepayAdvance(null)} title="Record repayment">
+        {repayAdvance && (
+          <form onSubmit={handleRepaySubmit} className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {CROP_LABELS[repayAdvance.cropType]} advance of {formatGHS(repayAdvance.amountGiven)}.
+              {" "}
+              {repayAdvance.expectedBags - repayAdvance.bagsRepaid} of {repayAdvance.expectedBags} bag(s)
+              remaining.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="repayBags">Bags supplied</Label>
+              <Input
+                id="repayBags"
+                required
+                inputMode="numeric"
+                placeholder="5"
+                value={repayBags}
+                onChange={(e) => setRepayBags(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="repayNotes">Notes</Label>
+              <Input id="repayNotes" value={repayNotes} onChange={(e) => setRepayNotes(e.target.value)} />
+            </div>
+            {repayError && <p className="text-sm text-red-600">{repayError}</p>}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setRepayAdvance(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={repaySaving}>
+                {repaySaving ? "Saving..." : "Record repayment"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Dialog>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} title="Record advance">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -215,11 +317,7 @@ export function FarmerDetailPage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cropType">Crop</Label>
-            <Select
-              id="cropType"
-              value={cropType}
-              onChange={(e) => setCropType(e.target.value as CropType)}
-            >
+            <Select id="cropType" value={cropType} onChange={(e) => setCropType(e.target.value as CropType)}>
               {CROP_TYPES.map((crop) => (
                 <option key={crop} value={crop}>
                   {CROP_LABELS[crop]}
@@ -248,11 +346,35 @@ export function FarmerDetailPage() {
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Record advance"}
+              {saving ? "Saving..." : "Record advance"}
             </Button>
           </div>
         </form>
       </Dialog>
     </div>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-4 p-5">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="text-2xl font-semibold">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

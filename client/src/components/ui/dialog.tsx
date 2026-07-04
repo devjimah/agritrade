@@ -41,7 +41,7 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={cn("w-full max-w-md rounded-xl border bg-white p-6 shadow-lg", className)}
+        className={cn("w-full max-w-md rounded-lg border bg-white p-6 shadow-lg", className)}
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold">{title}</h3>

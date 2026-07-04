@@ -37,8 +37,29 @@ export interface IFarmerAdvance {
   amountGiven: number;
   cropType: CropType;
   expectedBags: number;
+  /** Denormalized running total, updated atomically with each repayment. */
+  bagsRepaid: number;
   repaymentStatus: RepaymentStatus;
   notes?: string;
+}
+
+export interface IFarmerRepayment {
+  advanceId: Types.ObjectId;
+  /** Denormalized from the advance so repayments are queryable per farmer. */
+  farmerId: Types.ObjectId;
+  cropType: CropType;
+  bagsSupplied: number;
+  /** Client-generated UUID; unique index prevents double-submits (rule 7). */
+  idempotencyKey: string;
+  notes?: string;
+}
+
+export interface IInventory {
+  cropType: CropType;
+  quantityBags: number;
+  /** Set by mongoose timestamps. */
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const TRANSACTION_TYPES = [
@@ -53,8 +74,15 @@ export interface ITransaction {
   type: TransactionType;
   /** The financial document this entry records (advance, repayment, sale, payment). */
   referenceId: Types.ObjectId;
-  /** Pesewas; always positive, direction implied by type. */
+  /** The farmer or customer counterparty, when there is one (per-party ledger views). */
+  farmerId?: Types.ObjectId;
+  /**
+   * Pesewas; direction implied by type. Zero only for commodity movements
+   * (repayment_received), which carry `bags` instead.
+   */
   amount: number;
+  /** Bags moved, for commodity transactions. */
+  bags?: number;
   description: string;
   createdBy: Types.ObjectId;
 }

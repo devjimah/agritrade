@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import { connectDb } from "../config/db";
+import { InventoryModel } from "../models/inventory.model";
 import { UserModel } from "../models/user.model";
+import { CROP_TYPES } from "../types";
 import { hashPassword } from "../utils/password";
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@agritrade.local";
@@ -22,6 +24,17 @@ async function seed() {
     console.log(`Created admin user ${ADMIN_EMAIL} with password: ${ADMIN_PASSWORD}`);
     console.log("Change this password before deploying anywhere public.");
   }
+
+  // One inventory doc per crop up front, so stock movements are always plain
+  // updates (no upsert-insert race inside financial transactions).
+  for (const cropType of CROP_TYPES) {
+    await InventoryModel.updateOne(
+      { cropType },
+      { $setOnInsert: { quantityBags: 0 } },
+      { upsert: true }
+    );
+  }
+  console.log("Ensured inventory documents exist for all crops.");
 
   await mongoose.disconnect();
 }

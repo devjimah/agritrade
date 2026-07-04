@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Pencil } from "lucide-react";
+import { MapPin, Pencil, Phone, Plus, Search, Sprout } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
@@ -35,8 +36,6 @@ export function FarmersPage() {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Monotonic request id: responses arriving after a newer request was issued
-  // are discarded, so slow searches can't overwrite fresher results.
   const requestSeq = useRef(0);
   const prevSearch = useRef("");
 
@@ -58,7 +57,6 @@ export function FarmersPage() {
     }
   }, []);
 
-  // Debounce only when the search text changed; page clicks fetch immediately.
   useEffect(() => {
     const searchChanged = prevSearch.current !== search;
     prevSearch.current = search;
@@ -85,7 +83,7 @@ export function FarmersPage() {
     setDialogOpen(true);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     setFormError("");
@@ -104,16 +102,19 @@ export function FarmersPage() {
     }
   }
 
-  const setField = (field: keyof FarmerInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const setField = (field: keyof FarmerInput) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">Farmers</h2>
-          <p className="text-sm text-muted-foreground">
-            {search ? `${total} matching` : `${total} registered`}
+          <div className="inline-flex items-center gap-2 rounded-md bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+            <Sprout className="h-4 w-4" /> Farmer ledger
+          </div>
+          <h2 className="mt-3 text-3xl font-semibold">Farmers</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {search ? `${total} matching records` : `${total} registered farmers`}
           </p>
         </div>
         <Button onClick={openAdd}>
@@ -121,22 +122,25 @@ export function FarmersPage() {
         </Button>
       </div>
 
-      <Input
-        placeholder="Search by name or phone…"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPage(1);
-        }}
-        className="max-w-sm bg-white"
-      />
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search by name or phone..."
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          className="bg-white pl-9"
+        />
+      </div>
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardContent className="p-0">
           {listError ? (
             <p className="p-6 text-sm text-red-600">{listError}</p>
           ) : loading && farmers.length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground">Loading…</p>
+            <p className="p-6 text-sm text-muted-foreground">Loading...</p>
           ) : farmers.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">
               {search ? "No farmers match your search." : "No farmers yet. Add your first farmer."}
@@ -156,14 +160,28 @@ export function FarmersPage() {
                 {farmers.map((farmer) => (
                   <TableRow key={farmer._id}>
                     <TableCell className="font-medium">
-                      <Link to={`/farmers/${farmer._id}`} className="hover:underline">
+                      <Link to={`/farmers/${farmer._id}`} className="text-primary hover:underline">
                         {farmer.fullName}
                       </Link>
                     </TableCell>
-                    <TableCell>{farmer.phone}</TableCell>
-                    <TableCell>{farmer.village || "—"}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center gap-2">
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                        {farmer.phone}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {farmer.village ? (
+                        <span className="inline-flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          {farmer.village}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell className="max-w-xs truncate text-muted-foreground">
-                      {farmer.notes || "—"}
+                      {farmer.notes || "-"}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -236,7 +254,7 @@ export function FarmersPage() {
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving…" : editing ? "Save changes" : "Add farmer"}
+              {saving ? "Saving..." : editing ? "Save changes" : "Add farmer"}
             </Button>
           </div>
         </form>

@@ -10,6 +10,7 @@ export interface Advance {
   amountGiven: number;
   cropType: CropType;
   expectedBags: number;
+  bagsRepaid: number;
   repaymentStatus: RepaymentStatus;
   notes: string;
   createdAt: string;

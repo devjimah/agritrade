@@ -31,7 +31,11 @@ export interface AdvanceListResult {
 }
 
 export interface FarmerAdvanceSummary {
-  /** Pesewas advanced across non-completed advances. Phase 4 subtracts repaid value. */
+  /**
+   * Pesewas still owed across non-completed advances, pro-rated by bags
+   * repaid: amountGiven * (expectedBags - bagsRepaid) / expectedBags.
+   * Rounding lives here in the display aggregation — never in the ledger.
+   */
   outstandingAmount: number;
   totalAdvances: number;
   pendingAdvances: number;
@@ -109,7 +113,28 @@ export async function getFarmerAdvanceSummary(farmerId: string): Promise<FarmerA
       $group: {
         _id: null,
         outstandingAmount: {
-          $sum: { $cond: [{ $ne: ["$repaymentStatus", "completed"] }, "$amountGiven", 0] },
+          $sum: {
+            $cond: [
+              { $ne: ["$repaymentStatus", "completed"] },
+              {
+                $round: [
+                  {
+                    $multiply: [
+                      "$amountGiven",
+                      {
+                        $divide: [
+                          { $subtract: ["$expectedBags", "$bagsRepaid"] },
+                          "$expectedBags",
+                        ],
+                      },
+                    ],
+                  },
+                  0,
+                ],
+              },
+              0,
+            ],
+          },
         },
         totalAdvances: { $sum: 1 },
         pendingAdvances: {
