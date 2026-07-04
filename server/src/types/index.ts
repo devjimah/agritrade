@@ -17,6 +17,13 @@ export interface IFarmer {
   notes?: string;
 }
 
+export interface ICustomer {
+  fullName: string;
+  phone: string;
+  location?: string;
+  notes?: string;
+}
+
 export const CROP_TYPES = [
   "maize",
   "beans",

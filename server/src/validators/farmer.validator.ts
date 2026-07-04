@@ -4,7 +4,8 @@ import { z } from "zod";
 // Ghanaian numbers are commonly written as 0XXXXXXXXX or +233XXXXXXXXX.
 // Normalized to the local 0XXXXXXXXX form so the same number can never be
 // stored twice under different formats (duplicate-prevention rule).
-const phoneSchema = z
+// Shared with the customer validator.
+export const ghanaPhoneSchema = z
   .string()
   .trim()
   .regex(/^(\+233\d{9}|0\d{9})$/, "Phone must be 0XXXXXXXXX or +233XXXXXXXXX")
@@ -12,7 +13,7 @@ const phoneSchema = z
 
 const farmerFields = z.object({
   fullName: z.string().trim().min(2, "Full name is required").max(120),
-  phone: phoneSchema,
+  phone: ghanaPhoneSchema,
   village: z.string().trim().max(120),
   notes: z.string().trim().max(1000),
 });
