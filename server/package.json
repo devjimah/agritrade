@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "tsx src/scripts/seed.ts"
+    "seed": "tsx src/scripts/seed.ts",
+    "db:dev": "powershell -ExecutionPolicy Bypass -File src/scripts/dev-db.ps1"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
