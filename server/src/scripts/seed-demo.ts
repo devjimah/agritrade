@@ -4,9 +4,10 @@
  * writes, and balance updates as production — the dashboard, reports, and
  * detail pages light up with internally consistent data.
  *
- * Idempotent-ish: exits without writing if any demo farmer already exists.
- * Requires a replica-set MongoDB (npm run db:dev) and the base seed's admin
- * user (created here too if missing).
+ * Deterministic generation (no randomness in the data itself, so re-seeding a
+ * fresh DB always produces the same book). Idempotent-ish: exits without
+ * writing if any demo farmer already exists. Requires a replica-set MongoDB
+ * (npm run db:dev).
  */
 import { randomUUID } from "node:crypto";
 import mongoose from "mongoose";
@@ -19,58 +20,48 @@ import { createAdvance } from "../services/advance.service";
 import { createRepayment } from "../services/repayment.service";
 import { createCreditSale } from "../services/credit-sale.service";
 import { createPayment } from "../services/payment.service";
-import { CROP_TYPES, CropType, PaymentMethod } from "../types";
+import { CROP_TYPES, CropType, PAYMENT_METHODS } from "../types";
 import { hashPassword } from "../utils/password";
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@agritrade.local";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!";
 
-const FARMERS = [
-  { fullName: "Kofi Mensah", phone: "0244100001", village: "Techiman", notes: "Reliable maize supplier" },
-  { fullName: "Abena Osei", phone: "0244100002", village: "Wenchi", notes: "" },
-  { fullName: "Yaw Darko", phone: "0244100003", village: "Nkoranza", notes: "Two farms" },
-  { fullName: "Akosua Boateng", phone: "0244100004", village: "Kintampo", notes: "" },
-  { fullName: "Kwame Asante", phone: "0244100005", village: "Techiman", notes: "Groundnut specialist" },
-  { fullName: "Efua Mansa", phone: "0244100006", village: "Atebubu", notes: "" },
+const FARMER_COUNT = 25;
+const CUSTOMER_COUNT = 20;
+
+const FIRST_NAMES = [
+  "Kofi", "Ama", "Yaw", "Akosua", "Kwame", "Efua", "Kojo", "Abena", "Kwabena",
+  "Adwoa", "Kwaku", "Yaa", "Kwesi", "Esi", "Kwadwo", "Akua",
+];
+const SURNAMES = [
+  "Mensah", "Osei", "Darko", "Boateng", "Asante", "Mansa", "Antwi", "Serwaa",
+  "Ofori", "Amankwah", "Owusu", "Agyemang", "Appiah", "Frimpong",
+];
+const VILLAGES = ["Techiman", "Wenchi", "Nkoranza", "Kintampo", "Atebubu", "Ejura", "Yeji"];
+const LOCATIONS = [
+  "Kumasi Central Market", "Techiman Market", "Accra, Agbogbloshie", "Tamale",
+  "Sunyani", "Cape Coast", "Ho Market",
 ];
 
-const CUSTOMERS = [
-  { fullName: "Yaw Boateng", phone: "0551200001", location: "Kumasi Central Market", notes: "Bulk maize buyer" },
-  { fullName: "Esi Amankwah", phone: "0551200002", location: "Techiman Market", notes: "" },
-  { fullName: "Kojo Antwi", phone: "0551200003", location: "Accra, Agbogbloshie", notes: "Pays monthly" },
-  { fullName: "Ama Serwaa", phone: "0551200004", location: "Tamale", notes: "" },
-  { fullName: "Kwabena Ofori", phone: "0551200005", location: "Sunyani", notes: "" },
-];
+/** Typical GHS price per bag by crop. */
+const PRICE_GHS: Record<CropType, number> = {
+  maize: 150,
+  beans: 180,
+  brown_rice: 220,
+  millet: 160,
+  bambara_beans: 170,
+  groundnuts: 200,
+};
 
-/** GHS to pesewas. */
 const ghs = (amount: number) => Math.round(amount * 100);
-
-// [farmer index, GHS advanced, crop, expected bags, bags repaid so far]
-const ADVANCES: Array<[number, number, CropType, number, number]> = [
-  [0, 500, "maize", 10, 10], // completed
-  [1, 300, "beans", 6, 4], // partial
-  [2, 800, "maize", 16, 7], // partial
-  [3, 250, "millet", 5, 0], // pending
-  [4, 400, "groundnuts", 8, 8], // completed
-  [5, 350, "bambara_beans", 7, 2], // partial
-];
-// Stock produced: maize 17, beans 4, groundnuts 8, bambara_beans 2.
-
-// [customer index, crop, bags, GHS per bag, GHS paid so far, method]
-const SALES: Array<[number, CropType, number, number, number, PaymentMethod]> = [
-  [0, "maize", 8, 150, 500, "cash"], // partial
-  [1, "maize", 4, 155, 620, "mobile_money"], // paid
-  [2, "beans", 3, 180, 0, "cash"], // unpaid
-  [3, "groundnuts", 5, 200, 400, "bank"], // partial
-  [4, "bambara_beans", 2, 170, 340, "mobile_money"], // paid
-];
-// Stock left: maize 5, beans 1, groundnuts 3, bambara_beans 0.
+const name = (i: number) => `${FIRST_NAMES[i % FIRST_NAMES.length]} ${SURNAMES[(i * 3 + 1) % SURNAMES.length]}`;
 
 async function seedDemo() {
   await connectDb();
 
-  if (await FarmerModel.exists({ phone: FARMERS[0].phone })) {
+  if (await FarmerModel.exists({ phone: "0244100001" })) {
     console.log("Demo data already present (demo farmer phone found) — nothing to do.");
+    console.log("To reseed bigger/fresh, drop the database first.");
     await mongoose.disconnect();
     return;
   }
@@ -93,72 +84,143 @@ async function seedDemo() {
     );
   }
 
-  const farmers = await FarmerModel.create(FARMERS);
+  const farmers = await FarmerModel.create(
+    Array.from({ length: FARMER_COUNT }, (_, i) => ({
+      fullName: name(i),
+      phone: `02441${String(i + 1).padStart(5, "0")}`,
+      village: VILLAGES[i % VILLAGES.length],
+      notes: i % 5 === 0 ? "Long-standing supplier" : "",
+    }))
+  );
   console.log(`Created ${farmers.length} farmers.`);
-  const customers = await CustomerModel.create(CUSTOMERS);
+
+  const customers = await CustomerModel.create(
+    Array.from({ length: CUSTOMER_COUNT }, (_, k) => ({
+      fullName: name(k + 40),
+      phone: `05512${String(k + 1).padStart(5, "0")}`,
+      location: LOCATIONS[k % LOCATIONS.length],
+      notes: k % 6 === 0 ? "Bulk buyer" : "",
+    }))
+  );
   console.log(`Created ${customers.length} customers.`);
 
-  for (const [farmerIdx, amountGHS, cropType, expectedBags, bagsRepaid] of ADVANCES) {
-    const farmer = farmers[farmerIdx];
-    const advance = await createAdvance(
-      {
-        farmerId: farmer._id.toString(),
-        amountGiven: ghs(amountGHS),
-        cropType,
-        expectedBags,
-        notes: "",
-      },
-      admin._id
-    );
-    if (bagsRepaid > 0) {
-      await createRepayment(
+  // --- Advances + repayments -------------------------------------------
+  let advanceCount = 0;
+  let repaymentCount = 0;
+  let advancedGHS = 0;
+  for (let i = 0; i < farmers.length; i++) {
+    const advancesForFarmer = 1 + (i % 2); // 1 or 2 advances each
+    for (let j = 0; j < advancesForFarmer; j++) {
+      const cropType = CROP_TYPES[(i + j * 3) % CROP_TYPES.length];
+      const expectedBags = 10 + ((i * 7 + j * 13) % 91); // 10..100 bags
+      // Advance roughly 60% of the expected crop value.
+      const amountGHS = Math.round(expectedBags * PRICE_GHS[cropType] * 0.6);
+      const advance = await createAdvance(
         {
-          advanceId: advance._id.toString(),
-          bagsSupplied: bagsRepaid,
-          idempotencyKey: randomUUID(),
+          farmerId: farmers[i]._id.toString(),
+          amountGiven: ghs(amountGHS),
+          cropType,
+          expectedBags,
           notes: "",
         },
         admin._id
       );
-    }
-    console.log(
-      `Advance: ${farmer.fullName} — GHS ${amountGHS} for ${expectedBags} bags of ${cropType}, ${bagsRepaid} repaid.`
-    );
-  }
+      advanceCount++;
+      advancedGHS += amountGHS;
 
-  for (const [customerIdx, cropType, bags, priceGHS, paidGHS, method] of SALES) {
-    const customer = customers[customerIdx];
-    const sale = await createCreditSale(
-      {
-        customerId: customer._id.toString(),
-        cropType,
-        bagsTaken: bags,
-        pricePerBag: ghs(priceGHS),
-        idempotencyKey: randomUUID(),
-        notes: "",
-      },
-      admin._id
-    );
-    if (paidGHS > 0) {
-      await createPayment(
-        {
-          creditSaleId: sale._id.toString(),
-          amountPaid: ghs(paidGHS),
-          paymentMethod: method,
-          idempotencyKey: randomUUID(),
-          notes: "",
-        },
-        admin._id
-      );
+      // Repayment pattern: full / half / none / three-quarters.
+      const pattern = (i + j) % 4;
+      const bagsRepaid =
+        pattern === 0
+          ? expectedBags
+          : pattern === 1
+            ? Math.floor(expectedBags / 2)
+            : pattern === 2
+              ? 0
+              : Math.floor(expectedBags * 0.75);
+      if (bagsRepaid > 0) {
+        await createRepayment(
+          {
+            advanceId: advance._id.toString(),
+            bagsSupplied: bagsRepaid,
+            idempotencyKey: randomUUID(),
+            notes: "",
+          },
+          admin._id
+        );
+        repaymentCount++;
+      }
     }
-    console.log(
-      `Sale: ${customer.fullName} — ${bags} bags of ${cropType} @ GHS ${priceGHS}, GHS ${paidGHS} paid.`
-    );
   }
-
-  const stock = await InventoryModel.find({ quantityBags: { $gt: 0 } });
   console.log(
-    `Stock after demo: ${stock.map((s) => `${s.cropType}=${s.quantityBags}`).join(", ")}`
+    `Recorded ${advanceCount} advances (GHS ${advancedGHS.toLocaleString()}) and ${repaymentCount} repayments.`
+  );
+
+  // --- Credit sales + payments -----------------------------------------
+  // Sell from whatever stock the repayments produced, biggest pile first.
+  const stockDocs = await InventoryModel.find({ quantityBags: { $gt: 0 } });
+  const stock = new Map<CropType, number>(stockDocs.map((s) => [s.cropType, s.quantityBags]));
+
+  let saleCount = 0;
+  let paymentCount = 0;
+  let soldGHS = 0;
+  for (let k = 0; k < customers.length; k++) {
+    const salesForCustomer = 1 + (k % 3 === 0 ? 1 : 0); // some customers buy twice
+    for (let j = 0; j < salesForCustomer; j++) {
+      const [cropType, available] =
+        [...stock.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
+      if (!cropType || !available || available < 2) break;
+
+      const bags = Math.max(1, Math.floor(available * 0.15));
+      const priceGHS = PRICE_GHS[cropType] + (k % 5) * 5; // small per-customer haggling spread
+      const sale = await createCreditSale(
+        {
+          customerId: customers[k]._id.toString(),
+          cropType,
+          bagsTaken: bags,
+          pricePerBag: ghs(priceGHS),
+          idempotencyKey: randomUUID(),
+          notes: "",
+        },
+        admin._id
+      );
+      stock.set(cropType, available - bags);
+      saleCount++;
+      const totalGHS = bags * priceGHS;
+      soldGHS += totalGHS;
+
+      // Payment pattern: full / half / none / quarter.
+      const pattern = (k + j) % 4;
+      const paidGHS =
+        pattern === 0
+          ? totalGHS
+          : pattern === 1
+            ? Math.floor(totalGHS / 2)
+            : pattern === 2
+              ? 0
+              : Math.floor(totalGHS / 4);
+      if (paidGHS > 0) {
+        await createPayment(
+          {
+            creditSaleId: sale._id.toString(),
+            amountPaid: ghs(paidGHS),
+            paymentMethod: PAYMENT_METHODS[(k + j) % PAYMENT_METHODS.length],
+            idempotencyKey: randomUUID(),
+            notes: "",
+          },
+          admin._id
+        );
+        paymentCount++;
+      }
+    }
+  }
+  console.log(
+    `Recorded ${saleCount} credit sales (GHS ${soldGHS.toLocaleString()}) and ${paymentCount} payments.`
+  );
+
+  const remaining = await InventoryModel.find({ quantityBags: { $gt: 0 } });
+  console.log(
+    `Stock after demo: ${remaining.map((s) => `${s.cropType}=${s.quantityBags}`).join(", ") || "empty"}`
   );
   console.log("Demo seed complete.");
   await mongoose.disconnect();
