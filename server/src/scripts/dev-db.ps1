@@ -29,5 +29,5 @@ Start-Sleep -Seconds 3
 if ((Test-NetConnection -ComputerName 127.0.0.1 -Port $port -InformationLevel Quiet -WarningAction SilentlyContinue)) {
   Write-Host "Dev MongoDB replica set started on port $port."
 } else {
-  Write-Error "mongod did not come up — check $logDir\mongod.log"
+  Write-Error "mongod did not come up - check $logDir\mongod.log"
 }
