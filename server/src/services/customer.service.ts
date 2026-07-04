@@ -73,7 +73,7 @@ export async function updateCustomer(
   let customer;
   try {
     customer = await CustomerModel.findByIdAndUpdate(id, input, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
   } catch (err) {

@@ -84,7 +84,7 @@ export async function createPayment(
             },
           },
         ],
-        { new: true, session, updatePipeline: true }
+        { returnDocument: "after", session, updatePipeline: true }
       );
       if (!updated) {
         throw new AppError(
