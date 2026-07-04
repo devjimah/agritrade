@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Boxes, CircleDollarSign, Sprout, TrendingUp } from "lucide-react";
@@ -16,15 +16,12 @@ import { formatGHS } from "@/lib/money";
 import { getApiErrorMessage } from "@/services/api";
 import { listAdvances } from "@/services/advances";
 import type { Advance } from "@/services/advances";
-import { listFarmers } from "@/services/farmers";
-import { getInventory } from "@/services/inventory";
-import type { InventoryItem } from "@/services/inventory";
+import { getDashboardReport } from "@/services/reports";
+import type { DashboardReport } from "@/services/reports";
 
 export function DashboardPage() {
-  const [farmerTotal, setFarmerTotal] = useState(0);
+  const [report, setReport] = useState<DashboardReport | null>(null);
   const [advances, setAdvances] = useState<Advance[]>([]);
-  const [advanceTotal, setAdvanceTotal] = useState(0);
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -32,16 +29,13 @@ export function DashboardPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [farmerData, advanceData, inventoryData] = await Promise.all([
-          listFarmers({ page: 1, limit: 1 }),
+        const [reportData, advanceData] = await Promise.all([
+          getDashboardReport(),
           listAdvances({ page: 1, limit: 6 }),
-          getInventory(),
         ]);
         if (cancelled) return;
-        setFarmerTotal(farmerData.total);
+        setReport(reportData);
         setAdvances(advanceData.advances);
-        setAdvanceTotal(advanceData.total);
-        setInventory(inventoryData);
       } catch (err) {
         if (!cancelled) setError(getApiErrorMessage(err));
       } finally {
@@ -53,14 +47,15 @@ export function DashboardPage() {
     };
   }, []);
 
+  // All figures below come from the server-side report aggregation — never
+  // computed client-side over a paginated slice.
+  const inventory = report?.inventory ?? [];
   const totalBags = inventory.reduce((sum, item) => sum + item.quantityBags, 0);
-  const pendingAdvances = advances.filter((advance) => advance.repaymentStatus !== "completed");
-  const outstandingAmount = pendingAdvances.reduce((sum, advance) => sum + advance.amountGiven, 0);
 
-  const strongestStock = useMemo(
-    () => [...inventory].sort((a, b) => b.quantityBags - a.quantityBags).slice(0, 3),
-    [inventory]
-  );
+  // Six crops max — sorting on render is cheaper than memo bookkeeping.
+  const strongestStock = [...inventory]
+    .sort((a, b) => b.quantityBags - a.quantityBags)
+    .slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -97,15 +92,33 @@ export function DashboardPage() {
       {error && <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={Sprout} label="Registered farmers" value={loading ? "--" : farmerTotal} />
-        <MetricCard icon={TrendingUp} label="Recorded advances" value={loading ? "--" : advanceTotal} />
+        <MetricCard
+          icon={Sprout}
+          label="Farmers / Customers"
+          value={
+            loading || !report ? "--" : `${report.counts.farmers} / ${report.counts.customers}`
+          }
+        />
+        <MetricCard
+          icon={TrendingUp}
+          label="Outstanding farmer advances"
+          value={loading || !report ? "--" : formatGHS(report.outstandingAdvances)}
+        />
         <MetricCard icon={Boxes} label="Bags in stock" value={loading ? "--" : totalBags} />
         <MetricCard
           icon={CircleDollarSign}
-          label="Open value shown"
-          value={loading ? "--" : formatGHS(outstandingAmount)}
+          label="Outstanding customer debt"
+          value={loading || !report ? "--" : formatGHS(report.outstandingDebt)}
         />
       </section>
+
+      {report && (
+        <p className="text-sm text-muted-foreground">
+          Today: {report.today.salesCount} sale(s) worth {formatGHS(report.today.salesValue)} ·{" "}
+          {report.today.paymentsCount} payment(s) of {formatGHS(report.today.paymentsValue)} ·{" "}
+          {report.today.repaymentBags} bag(s) received from farmers
+        </p>
+      )}
 
       <section className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
         <Card>

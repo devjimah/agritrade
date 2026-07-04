@@ -1,5 +1,13 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { BarChart3, Boxes, LayoutDashboard, LogOut, Sprout, Users } from "lucide-react";
+import {
+  BarChart3,
+  Boxes,
+  FileBarChart,
+  LayoutDashboard,
+  LogOut,
+  Sprout,
+  Users,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,6 +17,7 @@ const navItems = [
   { to: "/farmers", label: "Farmers", icon: Sprout },
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/inventory", label: "Inventory", icon: Boxes },
+  { to: "/reports", label: "Reports", icon: FileBarChart },
 ];
 
 export function AppLayout() {

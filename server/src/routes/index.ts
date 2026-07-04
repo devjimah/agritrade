@@ -7,6 +7,7 @@ import inventoryRoute from "./inventory.route";
 import customerRoute from "./customer.route";
 import creditSaleRoute from "./credit-sale.route";
 import paymentRoute from "./payment.route";
+import reportRoute, { transactionRouter } from "./report.route";
 
 const router = Router();
 
@@ -22,5 +23,7 @@ router.use("/inventory", inventoryRoute);
 router.use("/customers", customerRoute);
 router.use("/credit-sales", creditSaleRoute);
 router.use("/payments", paymentRoute);
+router.use("/reports", reportRoute);
+router.use("/transactions", transactionRouter);
 
 export default router;

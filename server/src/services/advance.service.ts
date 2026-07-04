@@ -1,6 +1,10 @@
 import mongoose, { Types } from "mongoose";
 import { AppError } from "../errors/AppError";
-import { FarmerAdvanceDocument, FarmerAdvanceModel } from "../models/farmer-advance.model";
+import {
+  FarmerAdvanceDocument,
+  FarmerAdvanceModel,
+  PRO_RATA_OUTSTANDING,
+} from "../models/farmer-advance.model";
 import { FarmerModel } from "../models/farmer.model";
 import { TransactionModel } from "../models/transaction.model";
 import { CreateAdvanceInput, ListAdvancesQuery } from "../validators/advance.validator";
@@ -112,30 +116,7 @@ export async function getFarmerAdvanceSummary(farmerId: string): Promise<FarmerA
     {
       $group: {
         _id: null,
-        outstandingAmount: {
-          $sum: {
-            $cond: [
-              { $ne: ["$repaymentStatus", "completed"] },
-              {
-                $round: [
-                  {
-                    $multiply: [
-                      "$amountGiven",
-                      {
-                        $divide: [
-                          { $subtract: ["$expectedBags", "$bagsRepaid"] },
-                          "$expectedBags",
-                        ],
-                      },
-                    ],
-                  },
-                  0,
-                ],
-              },
-              0,
-            ],
-          },
-        },
+        outstandingAmount: { $sum: PRO_RATA_OUTSTANDING },
         totalAdvances: { $sum: 1 },
         pendingAdvances: {
           $sum: { $cond: [{ $ne: ["$repaymentStatus", "completed"] }, 1, 0] },

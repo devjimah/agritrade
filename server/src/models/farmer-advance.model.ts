@@ -46,3 +46,27 @@ farmerAdvanceSchema.index({ farmerId: 1, createdAt: -1 });
 farmerAdvanceSchema.index({ createdAt: -1 });
 
 export const FarmerAdvanceModel = model<IFarmerAdvance>("FarmerAdvance", farmerAdvanceSchema);
+
+/**
+ * Aggregation fragment: pesewas still owed on an advance, pro-rated by bags
+ * repaid; 0 once completed. Co-located with the schema so the formula cannot
+ * drift between the advance summary and the reports that reuse it.
+ * Safe division: expectedBags has schema min 1.
+ */
+export const PRO_RATA_OUTSTANDING = {
+  $cond: [
+    { $ne: ["$repaymentStatus", "completed"] },
+    {
+      $round: [
+        {
+          $multiply: [
+            "$amountGiven",
+            { $divide: [{ $subtract: ["$expectedBags", "$bagsRepaid"] }, "$expectedBags"] },
+          ],
+        },
+        0,
+      ],
+    },
+    0,
+  ],
+};
