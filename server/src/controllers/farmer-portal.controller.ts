@@ -5,9 +5,11 @@ import * as advanceService from "../services/advance.service";
 import * as repaymentService from "../services/repayment.service";
 import { AuthRequest } from "../types";
 import { loginFarmer } from "../services/farmer-auth.service";
+import * as repaymentClaimService from "../services/repayment-claim.service";
 import { farmerLoginSchema } from "../validators/farmer-auth.validator";
 import { listMyAdvancesQuerySchema } from "../validators/advance.validator";
 import { listMyRepaymentsQuerySchema } from "../validators/repayment.validator";
+import { listMyClaimsQuerySchema, submitClaimSchema } from "../validators/repayment-claim.validator";
 
 export async function farmerLoginController(req: Request, res: Response, next: NextFunction) {
   try {
@@ -54,6 +56,28 @@ export async function myRepaymentsController(req: AuthRequest, res: Response, ne
       ...query,
       farmerId: req.farmer.id.toString(),
     });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function submitClaimController(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    if (!req.farmer) throw new AppError("Not authenticated", 401);
+    const input = submitClaimSchema.parse(req.body);
+    const claim = await repaymentClaimService.submitClaim(req.farmer.id, input);
+    res.status(201).json({ success: true, data: { claim } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function myClaimsController(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    if (!req.farmer) throw new AppError("Not authenticated", 401);
+    const query = listMyClaimsQuerySchema.parse(req.query);
+    const result = await repaymentClaimService.listMyClaims(req.farmer.id, query);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);

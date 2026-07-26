@@ -63,6 +63,31 @@ export interface IFarmerRepayment {
   notes?: string;
 }
 
+export const REPAYMENT_CLAIM_STATUSES = ["pending", "confirmed", "rejected"] as const;
+export type RepaymentClaimStatus = (typeof REPAYMENT_CLAIM_STATUSES)[number];
+
+/**
+ * A farmer's unverified assertion ("I delivered N bags against advance X").
+ * INERT DATA: creating/reading this document must never touch
+ * FarmerAdvanceModel, InventoryModel, or TransactionModel. Only a trader's
+ * confirm action (Task 6, via the existing createRepayment) makes it real.
+ */
+export interface IRepaymentClaim {
+  advanceId: Types.ObjectId;
+  /** Denormalized from the advance so claims are queryable per farmer. */
+  farmerId: Types.ObjectId;
+  bagsClaimed: number;
+  status: RepaymentClaimStatus;
+  /** Staff user who confirmed/rejected; set only once reviewed. */
+  reviewedBy?: Types.ObjectId;
+  reviewedAt?: Date;
+  rejectionReason?: string;
+  /** Set on confirm; links to the FarmerRepayment createRepayment produced. */
+  resultingRepaymentId?: Types.ObjectId;
+  /** Client-generated UUID; unique index prevents double-submits (rule 7). */
+  idempotencyKey: string;
+}
+
 export interface IInventory {
   cropType: CropType;
   quantityBags: number;

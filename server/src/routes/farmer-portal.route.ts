@@ -4,7 +4,9 @@ import {
   farmerLoginController,
   meController,
   myAdvancesController,
+  myClaimsController,
   myRepaymentsController,
+  submitClaimController,
 } from "../controllers/farmer-portal.controller";
 import { requireFarmerAuth } from "../middleware/farmer-auth";
 
@@ -27,5 +29,7 @@ router.post("/login", loginLimiter, farmerLoginController);
 router.get("/me", requireFarmerAuth, meController);
 router.get("/advances", requireFarmerAuth, myAdvancesController);
 router.get("/repayments", requireFarmerAuth, myRepaymentsController);
+router.post("/repayment-claims", requireFarmerAuth, submitClaimController);
+router.get("/repayment-claims", requireFarmerAuth, myClaimsController);
 
 export default router;
