@@ -1,6 +1,12 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { farmerLoginController } from "../controllers/farmer-portal.controller";
+import {
+  farmerLoginController,
+  meController,
+  myAdvancesController,
+  myRepaymentsController,
+} from "../controllers/farmer-portal.controller";
+import { requireFarmerAuth } from "../middleware/farmer-auth";
 
 const router = Router();
 
@@ -15,5 +21,11 @@ const loginLimiter = rateLimit({
 });
 
 router.post("/login", loginLimiter, farmerLoginController);
+
+// Applied per-route (not router.use) so /login above stays reachable
+// without a token while everything below it requires one.
+router.get("/me", requireFarmerAuth, meController);
+router.get("/advances", requireFarmerAuth, myAdvancesController);
+router.get("/repayments", requireFarmerAuth, myRepaymentsController);
 
 export default router;

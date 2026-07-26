@@ -21,5 +21,16 @@ export const listRepaymentsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+// Portal-scoped: no `farmerId` field, so a farmer can't query another
+// farmer's repayments by tampering with the query string (mirrors
+// listMyAdvancesQuerySchema in advance.validator.ts). advanceId stays —
+// a farmer may legitimately filter their own repayments by advance.
+export const listMyRepaymentsQuerySchema = z.object({
+  advanceId: objectIdSchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export type CreateRepaymentInput = z.infer<typeof createRepaymentSchema>;
 export type ListRepaymentsQuery = z.infer<typeof listRepaymentsQuerySchema>;
+export type ListMyRepaymentsQuery = z.infer<typeof listMyRepaymentsQuerySchema>;
