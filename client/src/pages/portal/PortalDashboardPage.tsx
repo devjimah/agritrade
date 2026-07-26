@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { CROP_LABELS } from "@/lib/crops";
 import { formatGHS } from "@/lib/money";
+import { usePolling } from "@/hooks/usePolling";
 import { getApiErrorMessage } from "@/services/api";
 import { fetchMyAdvances } from "@/services/farmerPortal";
 import type { Advance, FarmerAdvanceSummary, RepaymentStatus } from "@/services/farmerPortal";
@@ -40,10 +41,14 @@ export function PortalDashboardPage() {
   // Stale-response guard, same pattern as FarmerDetailPage/CustomerDetailPage.
   const requestSeq = useRef(0);
 
-  const load = useCallback(async () => {
+  // `silent` skips the loading/error churn so background polling doesn't flash
+  // the page away or replace it with a transient network error.
+  const load = useCallback(async (silent = false) => {
     const seq = ++requestSeq.current;
-    setLoading(true);
-    setError("");
+    if (!silent) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const data = await fetchMyAdvances();
       if (seq !== requestSeq.current) return;
@@ -51,16 +56,23 @@ export function PortalDashboardPage() {
       setTotal(data.total);
       setSummary(data.summary);
       setLoading(false);
+      setError("");
     } catch (err) {
       if (seq !== requestSeq.current) return;
-      setError(getApiErrorMessage(err));
-      setLoading(false);
+      if (!silent) {
+        setError(getApiErrorMessage(err));
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // The balance here moves when a trader confirms a claim, so keep it current
+  // without the farmer reloading.
+  usePolling(() => load(true), 15000);
 
   return (
     <div className="space-y-5">

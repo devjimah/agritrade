@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CROP_LABELS } from "@/lib/crops";
+import { usePolling } from "@/hooks/usePolling";
 import { getApiErrorMessage } from "@/services/api";
 import { fetchMyAdvances, fetchMyClaims, submitClaim } from "@/services/farmerPortal";
 import type { Advance, RepaymentClaim, RepaymentClaimStatus } from "@/services/farmerPortal";
@@ -51,10 +52,14 @@ export function PortalClaimsPage() {
 
   const requestSeq = useRef(0);
 
-  const load = useCallback(async () => {
+  // `silent` skips the loading/error churn so background polling doesn't flash
+  // the page away or replace it with a transient network error.
+  const load = useCallback(async (silent = false) => {
     const seq = ++requestSeq.current;
-    setLoading(true);
-    setPageError("");
+    if (!silent) {
+      setLoading(true);
+      setPageError("");
+    }
     try {
       const [advanceData, claimData] = await Promise.all([fetchMyAdvances(), fetchMyClaims()]);
       if (seq !== requestSeq.current) return;
@@ -62,16 +67,24 @@ export function PortalClaimsPage() {
       setClaims(claimData.claims);
       setClaimsTotal(claimData.total);
       setLoading(false);
+      setPageError("");
     } catch (err) {
       if (seq !== requestSeq.current) return;
-      setPageError(getApiErrorMessage(err));
-      setLoading(false);
+      if (!silent) {
+        setPageError(getApiErrorMessage(err));
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // A farmer submits a claim and then waits on the trader; poll so the status
+  // flips to Confirmed/Rejected on its own. Paused while the submit dialog is
+  // open so a refresh can't change the advance list mid-entry.
+  usePolling(() => load(true), 15000, !dialogOpen);
 
   const openAdvances = advances.filter((a) => a.repaymentStatus !== "completed");
 

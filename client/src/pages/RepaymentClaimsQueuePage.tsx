@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { usePolling } from "@/hooks/usePolling";
 import { getApiErrorMessage } from "@/services/api";
 import {
   confirmRepaymentClaim,
@@ -55,26 +56,42 @@ export function RepaymentClaimsQueuePage() {
   // and a slow earlier response must not clobber a newer one's results.
   const requestSeq = useRef(0);
 
-  const load = useCallback(async () => {
-    const seq = ++requestSeq.current;
-    setLoading(true);
-    setError("");
-    try {
-      const data = await listRepaymentClaims({ status: status || undefined, limit: 100 });
-      if (seq !== requestSeq.current) return;
-      setClaims(data.claims);
-      setTotal(data.total);
-      setLoading(false);
-    } catch (err) {
-      if (seq !== requestSeq.current) return;
-      setError(getApiErrorMessage(err));
-      setLoading(false);
-    }
-  }, [status]);
+  // `silent` skips the loading/error churn so background polling doesn't flash
+  // the table away or replace it with a transient network error.
+  const load = useCallback(
+    async (silent = false) => {
+      const seq = ++requestSeq.current;
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
+      try {
+        const data = await listRepaymentClaims({ status: status || undefined, limit: 100 });
+        if (seq !== requestSeq.current) return;
+        setClaims(data.claims);
+        setTotal(data.total);
+        setLoading(false);
+        setError("");
+      } catch (err) {
+        if (seq !== requestSeq.current) return;
+        if (!silent) {
+          setError(getApiErrorMessage(err));
+          setLoading(false);
+        }
+      }
+    },
+    [status]
+  );
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Keep the queue current so a trader sees newly submitted claims without
+  // reloading. Paused while a reject dialog is open or a confirm is in flight,
+  // so a refresh can't move the row someone is acting on.
+  const pollEnabled = rejectClaim === null && confirmingId === null;
+  usePolling(() => load(true), 15000, pollEnabled);
 
   async function handleConfirm(claim: StaffRepaymentClaim) {
     setConfirmingId(claim._id);
