@@ -1,6 +1,7 @@
 import { Router } from "express";
 import authRoute from "./auth.route";
 import farmerRoute from "./farmer.route";
+import farmerPortalRoute from "./farmer-portal.route";
 import advanceRoute from "./advance.route";
 import repaymentRoute from "./repayment.route";
 import inventoryRoute from "./inventory.route";
@@ -17,6 +18,7 @@ router.get("/health", (_req, res) => {
 
 router.use("/auth", authRoute);
 router.use("/farmers", farmerRoute);
+router.use("/farmer-portal", farmerPortalRoute);
 router.use("/advances", advanceRoute);
 router.use("/repayments", repaymentRoute);
 router.use("/inventory", inventoryRoute);
