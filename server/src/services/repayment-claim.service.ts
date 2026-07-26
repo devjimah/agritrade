@@ -129,7 +129,7 @@ export async function listMyClaims(
   };
 }
 
-/** Trader-facing queue: filters by status, populates farmer name/phone. Uses the { status: 1, createdAt: -1 } index on the model. */
+/** Trader-facing queue: filters by status, populates farmer name/phone. Filter+sort shape is intended to use the { status: 1, createdAt: -1 } index on the model (confirmed by inspection, not explain()). */
 export async function listClaims(query: ListClaimsQuery): Promise<StaffClaimListResult> {
   const filter: Record<string, unknown> = {};
   if (query.status) filter.status = query.status;
@@ -165,6 +165,17 @@ export async function listClaims(query: ListClaimsQuery): Promise<StaffClaimList
  * claim is left untouched (still "pending"). A stale claim is not a
  * rejected claim: the trader must see the real reason and decide, so we
  * never catch this and flip status to "rejected".
+ *
+ * Retry/convergence property: if the process dies AFTER createRepayment
+ * commits but BEFORE the claim-status write below lands, the claim is left
+ * "pending" and reappears in the queue. A subsequent re-confirm calls
+ * createRepayment again with the SAME idempotencyKey (claim.idempotencyKey
+ * never changes), so createRepayment's own E11000 branch returns the
+ * ORIGINAL repayment instead of creating a second one — the claim write
+ * below then converges on that same repayment id. This is precisely why
+ * this path must never be "optimized" into pre-checking for an existing
+ * repayment and throwing if one is found: doing so would turn a safe,
+ * convergent retry into a permanently stuck claim.
  */
 export async function confirmClaim(
   claimId: string,
@@ -186,12 +197,25 @@ export async function confirmClaim(
     staffUserId
   );
 
-  claim.status = "confirmed";
-  claim.resultingRepaymentId = repayment._id;
-  claim.reviewedBy = staffUserId;
-  claim.reviewedAt = new Date();
-  await claim.save();
-  return claim;
+  // Guarded write, not read-then-save: if two traders raced past the
+  // in-memory "pending" check above, only the one whose write still finds
+  // status: "pending" here actually flips the claim — last write does not
+  // silently clobber the first. The idempotencyKey already prevents a
+  // second repayment either way; this guard makes the claim-flip itself
+  // single-winner too.
+  const updated = await RepaymentClaimModel.findOneAndUpdate(
+    { _id: claim._id, status: "pending" },
+    {
+      $set: {
+        status: "confirmed",
+        resultingRepaymentId: repayment._id,
+        reviewedBy: staffUserId,
+        reviewedAt: new Date(),
+      },
+    },
+    { returnDocument: "after" }
+  );
+  return updated ?? claim;
 }
 
 export async function rejectClaim(
