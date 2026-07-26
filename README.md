@@ -40,3 +40,21 @@ cd server && npm run db:dev
 
 The server logs a warning at startup if the connected MongoDB is not a
 replica set. Tests use an in-memory replica set automatically.
+
+## Farmer portal
+
+Farmers can sign in to a read-mostly self-service portal at **`/portal`** to see
+their own advances, repayment history, and outstanding balance — separate from
+the trader-facing app at `/`. A trader and a farmer can be signed in at the same
+time in one browser (the two sessions use different tokens).
+
+Farmers sign in with their **phone number and a PIN the trader sets** for them:
+open the farmer's detail page in the trader app and use *Set portal PIN*. There
+is no self-registration, and the PIN is stored hashed like any password.
+
+A farmer can also submit a **repayment claim** ("I delivered N bags against this
+advance"). A claim is only a request: it does **not** touch inventory, the
+advance balance, or the transaction ledger. Nothing moves until a trader reviews
+it under *Repayment claims* in the trader app and confirms it — confirmation
+records the repayment exactly as if the trader had entered it directly.
+Rejecting a claim has no financial effect at all.
