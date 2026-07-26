@@ -4,6 +4,7 @@ import { clearTestDb, setupTestDb, teardownTestDb } from "../tests/setup";
 import { FarmerModel } from "../models/farmer.model";
 import { FarmerAdvanceModel } from "../models/farmer-advance.model";
 import { FarmerRepaymentModel } from "../models/farmer-repayment.model";
+import { UserModel } from "../models/user.model";
 import { hashPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 
@@ -111,11 +112,21 @@ describe("authenticated farmer-portal endpoints", () => {
       pinHash: await hashPassword("1234"),
     });
     tokenA = signToken({ sub: farmerA._id.toString(), scope: "farmer" });
-    staffToken = signToken({ sub: farmerA._id.toString(), role: "admin" });
+    // A real staff user, not a farmer id reused with role: "admin" — so this
+    // token fails for the right reason (scope check) if requireFarmerAuth
+    // regresses, rather than incidentally via a FarmerModel lookup miss.
+    const staffUser = await UserModel.create({
+      fullName: "Ama Trader",
+      email: "ama@example.com",
+      passwordHash: await hashPassword("secret123"),
+      role: "admin",
+    });
+    staffToken = signToken({ sub: staffUser._id.toString(), role: staffUser.role });
   });
 
   const authA = () => ({ Authorization: `Bearer ${tokenA}` });
   const authStaff = () => ({ Authorization: `Bearer ${staffToken}` });
+  const authGarbage = () => ({ Authorization: "Bearer garbage" });
 
   describe("GET /api/farmer-portal/me", () => {
     it("returns the authenticated farmer's own profile", async () => {
@@ -138,6 +149,11 @@ describe("authenticated farmer-portal endpoints", () => {
 
     it("401 with a staff token", async () => {
       const res = await request(app).get("/api/farmer-portal/me").set(authStaff());
+      expect(res.status).toBe(401);
+    });
+
+    it("401 with a garbage token", async () => {
+      const res = await request(app).get("/api/farmer-portal/me").set(authGarbage());
       expect(res.status).toBe(401);
     });
   });
@@ -187,6 +203,11 @@ describe("authenticated farmer-portal endpoints", () => {
 
     it("401 with a staff token", async () => {
       const res = await request(app).get("/api/farmer-portal/advances").set(authStaff());
+      expect(res.status).toBe(401);
+    });
+
+    it("401 with a garbage token", async () => {
+      const res = await request(app).get("/api/farmer-portal/advances").set(authGarbage());
       expect(res.status).toBe(401);
     });
   });
@@ -254,6 +275,11 @@ describe("authenticated farmer-portal endpoints", () => {
 
     it("401 with a staff token", async () => {
       const res = await request(app).get("/api/farmer-portal/repayments").set(authStaff());
+      expect(res.status).toBe(401);
+    });
+
+    it("401 with a garbage token", async () => {
+      const res = await request(app).get("/api/farmer-portal/repayments").set(authGarbage());
       expect(res.status).toBe(401);
     });
   });
