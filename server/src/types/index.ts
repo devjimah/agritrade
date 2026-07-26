@@ -15,6 +15,8 @@ export interface IFarmer {
   phone: string;
   village?: string;
   notes?: string;
+  /** Hash of the farmer's self-service login PIN; absent until they're onboarded to the portal. */
+  pinHash?: string;
 }
 
 export interface ICustomer {
@@ -133,13 +135,21 @@ export interface ITransaction {
   createdBy: Types.ObjectId;
 }
 
-export interface JwtPayload {
+export interface StaffJwtPayload {
   sub: string; // user id
   role: UserRole;
 }
+
+export interface FarmerJwtPayload {
+  sub: string; // farmer id
+  scope: "farmer";
+}
+
+export type JwtPayload = StaffJwtPayload | FarmerJwtPayload;
 
 export interface AuthRequest extends Request {
   user?: { id: Types.ObjectId; role: UserRole };
   /** Full user document loaded by requireAuth; avoids a second fetch in handlers. */
   userDoc?: HydratedDocument<IUser>;
+  farmer?: { id: Types.ObjectId };
 }
