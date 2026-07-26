@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { randomUUID } from "node:crypto";
 import { clearTestDb, setupTestDb, teardownTestDb } from "../tests/setup";
@@ -164,6 +164,47 @@ describe("POST /api/repayment-claims/:id/confirm", () => {
   it("404 on a nonexistent claim id", async () => {
     const res = await confirm("64b000000000000000000000");
     expect(res.status).toBe(404);
+  });
+
+  it("race-loser path: reports the true post-race confirmed state, not a stale pending snapshot", async () => {
+    // Simulates two traders confirming the same claim concurrently: this
+    // caller's createRepayment succeeds (idempotencyKey guarantees only one
+    // repayment ever exists), but the guarded status-flip write loses the
+    // race because some other writer already flipped the claim to
+    // "confirmed" first. Force that by making findOneAndUpdate return null
+    // exactly once, after directly flipping the claim in the DB to mimic the
+    // "winner" having already landed.
+    const claim = await submitClaim(4);
+
+    const spy = vi
+      .spyOn(RepaymentClaimModel, "findOneAndUpdate")
+      .mockImplementationOnce(async () => {
+        // The "winner" lands here, between our createRepayment call and our
+        // own guarded write.
+        await RepaymentClaimModel.updateOne(
+          { _id: claim._id },
+          {
+            $set: {
+              status: "confirmed",
+              reviewedBy: claim._id, // arbitrary distinct ObjectId stand-in for "some other reviewer"
+              reviewedAt: new Date(),
+            },
+          }
+        );
+        return null;
+      });
+
+    const res = await confirm(claim._id.toString());
+    spy.mockRestore();
+
+    expect(res.status).toBe(200);
+    // Must reflect the TRUE current state (confirmed), not the stale
+    // in-memory "pending" claim read before either write landed.
+    expect(res.body.data.claim.status).toBe("confirmed");
+    expect(res.body.data.claim._id).toBe(claim._id.toString());
+
+    // Exactly one repayment exists — the race did not double-create one.
+    expect(await FarmerRepaymentModel.countDocuments()).toBe(1);
   });
 
   it("401 without token", async () => {

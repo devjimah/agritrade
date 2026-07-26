@@ -215,7 +215,19 @@ export async function confirmClaim(
     },
     { returnDocument: "after" }
   );
-  return updated ?? claim;
+  if (updated) return updated;
+
+  // We lost the claim-flip race: some other caller's write landed first, so
+  // `updated` is null here. By this point our createRepayment call above has
+  // ALREADY run — but because both racers pass the same claim.idempotencyKey,
+  // createRepayment's E11000 branch means only ONE repayment document exists
+  // no matter who "won". There is nothing to undo and no compensating write
+  // belongs here; this branch only corrects what gets REPORTED to the loser,
+  // by re-reading the claim so the response reflects the true post-race state
+  // (confirmed, with the winner's reviewedBy/resultingRepaymentId) instead of
+  // the stale in-memory "pending" snapshot taken before either write landed.
+  const current = await RepaymentClaimModel.findById(claim._id);
+  return current ?? claim;
 }
 
 export async function rejectClaim(
