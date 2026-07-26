@@ -249,4 +249,14 @@ describe("POST /api/farmers/:id/pin", () => {
       .send({ pin: "1234" });
     expect(res.status).toBe(401);
   });
+
+  it("401 with a farmer-scoped token", async () => {
+    const farmer = await FarmerModel.create(validFarmer);
+    const farmerToken = signToken({ sub: farmer._id.toString(), scope: "farmer" });
+    const res = await request(app)
+      .post(`/api/farmers/${farmer._id}/pin`)
+      .set({ Authorization: `Bearer ${farmerToken}` })
+      .send({ pin: "1234" });
+    expect(res.status).toBe(401);
+  });
 });

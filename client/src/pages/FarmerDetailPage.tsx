@@ -156,6 +156,8 @@ export function FarmerDetailPage() {
     try {
       await setFarmerPin(id, pin);
       setPinDialogOpen(false);
+      setPin("");
+      setPinConfirm("");
     } catch (err) {
       setPinError(getApiErrorMessage(err));
     } finally {
