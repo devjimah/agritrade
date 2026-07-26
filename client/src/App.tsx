@@ -10,11 +10,13 @@ import { InventoryPage } from "@/pages/InventoryPage";
 import { CustomersPage } from "@/pages/CustomersPage";
 import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 import { ReportsPage } from "@/pages/ReportsPage";
+import { RepaymentClaimsQueuePage } from "@/pages/RepaymentClaimsQueuePage";
 import { FarmerAuthProvider } from "@/context/FarmerAuthContext";
 import { FarmerProtectedRoute } from "@/components/FarmerProtectedRoute";
 import { PortalLayout } from "@/layouts/PortalLayout";
 import { PortalLoginPage } from "@/pages/portal/PortalLoginPage";
 import { PortalDashboardPage } from "@/pages/portal/PortalDashboardPage";
+import { PortalClaimsPage } from "@/pages/portal/PortalClaimsPage";
 
 export default function App() {
   return (
@@ -35,6 +37,7 @@ export default function App() {
                     <Route path="/customers/:id" element={<CustomerDetailPage />} />
                     <Route path="/inventory" element={<InventoryPage />} />
                     <Route path="/reports" element={<ReportsPage />} />
+                    <Route path="/repayment-claims" element={<RepaymentClaimsQueuePage />} />
                   </Route>
                 </Route>
               </Routes>
@@ -50,6 +53,7 @@ export default function App() {
                 <Route element={<FarmerProtectedRoute />}>
                   <Route element={<PortalLayout />}>
                     <Route index element={<PortalDashboardPage />} />
+                    <Route path="claims" element={<PortalClaimsPage />} />
                   </Route>
                 </Route>
               </Routes>

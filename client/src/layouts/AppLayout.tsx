@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import {
   BarChart3,
   Boxes,
+  ClipboardCheck,
   FileBarChart,
   LayoutDashboard,
   LogOut,
@@ -17,6 +18,7 @@ const navItems = [
   { to: "/farmers", label: "Farmers", icon: Sprout },
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/inventory", label: "Inventory", icon: Boxes },
+  { to: "/repayment-claims", label: "Repayment claims", icon: ClipboardCheck },
   { to: "/reports", label: "Reports", icon: FileBarChart },
 ];
 
