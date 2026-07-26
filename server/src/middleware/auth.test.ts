@@ -57,4 +57,11 @@ describe("requireAuth", () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual({ userId: user._id.toString(), role: "admin" });
   });
+
+  it("rejects a farmer-scoped token", async () => {
+    const user = await seedUser();
+    const token = signToken({ sub: user._id.toString(), scope: "farmer" });
+    const res = await request(makeApp()).get("/protected").set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(401);
+  });
 });

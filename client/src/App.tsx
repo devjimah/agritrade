@@ -10,26 +10,57 @@ import { InventoryPage } from "@/pages/InventoryPage";
 import { CustomersPage } from "@/pages/CustomersPage";
 import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 import { ReportsPage } from "@/pages/ReportsPage";
+import { RepaymentClaimsQueuePage } from "@/pages/RepaymentClaimsQueuePage";
+import { FarmerAuthProvider } from "@/context/FarmerAuthContext";
+import { FarmerProtectedRoute } from "@/components/FarmerProtectedRoute";
+import { PortalLayout } from "@/layouts/PortalLayout";
+import { PortalLoginPage } from "@/pages/portal/PortalLoginPage";
+import { PortalDashboardPage } from "@/pages/portal/PortalDashboardPage";
+import { PortalClaimsPage } from "@/pages/portal/PortalClaimsPage";
 
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/farmers" element={<FarmersPage />} />
-              <Route path="/farmers/:id" element={<FarmerDetailPage />} />
-              <Route path="/customers" element={<CustomersPage />} />
-              <Route path="/customers/:id" element={<CustomerDetailPage />} />
-              <Route path="/inventory" element={<InventoryPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-            </Route>
-          </Route>
-        </Routes>
-      </AuthProvider>
+      <Routes>
+        <Route
+          path="/*"
+          element={
+            <AuthProvider>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<AppLayout />}>
+                    <Route path="/" element={<DashboardPage />} />
+                    <Route path="/farmers" element={<FarmersPage />} />
+                    <Route path="/farmers/:id" element={<FarmerDetailPage />} />
+                    <Route path="/customers" element={<CustomersPage />} />
+                    <Route path="/customers/:id" element={<CustomerDetailPage />} />
+                    <Route path="/inventory" element={<InventoryPage />} />
+                    <Route path="/reports" element={<ReportsPage />} />
+                    <Route path="/repayment-claims" element={<RepaymentClaimsQueuePage />} />
+                  </Route>
+                </Route>
+              </Routes>
+            </AuthProvider>
+          }
+        />
+        <Route
+          path="/portal/*"
+          element={
+            <FarmerAuthProvider>
+              <Routes>
+                <Route path="login" element={<PortalLoginPage />} />
+                <Route element={<FarmerProtectedRoute />}>
+                  <Route element={<PortalLayout />}>
+                    <Route index element={<PortalDashboardPage />} />
+                    <Route path="claims" element={<PortalClaimsPage />} />
+                  </Route>
+                </Route>
+              </Routes>
+            </FarmerAuthProvider>
+          }
+        />
+      </Routes>
     </BrowserRouter>
   );
 }

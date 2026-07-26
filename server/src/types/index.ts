@@ -15,6 +15,8 @@ export interface IFarmer {
   phone: string;
   village?: string;
   notes?: string;
+  /** Hash of the farmer's self-service login PIN; absent until they're onboarded to the portal. */
+  pinHash?: string;
 }
 
 export interface ICustomer {
@@ -59,6 +61,31 @@ export interface IFarmerRepayment {
   /** Client-generated UUID; unique index prevents double-submits (rule 7). */
   idempotencyKey: string;
   notes?: string;
+}
+
+export const REPAYMENT_CLAIM_STATUSES = ["pending", "confirmed", "rejected"] as const;
+export type RepaymentClaimStatus = (typeof REPAYMENT_CLAIM_STATUSES)[number];
+
+/**
+ * A farmer's unverified assertion ("I delivered N bags against advance X").
+ * INERT DATA: creating/reading this document must never touch
+ * FarmerAdvanceModel, InventoryModel, or TransactionModel. Only a trader's
+ * confirm action (Task 6, via the existing createRepayment) makes it real.
+ */
+export interface IRepaymentClaim {
+  advanceId: Types.ObjectId;
+  /** Denormalized from the advance so claims are queryable per farmer. */
+  farmerId: Types.ObjectId;
+  bagsClaimed: number;
+  status: RepaymentClaimStatus;
+  /** Staff user who confirmed/rejected; set only once reviewed. */
+  reviewedBy?: Types.ObjectId;
+  reviewedAt?: Date;
+  rejectionReason?: string;
+  /** Set on confirm; links to the FarmerRepayment createRepayment produced. */
+  resultingRepaymentId?: Types.ObjectId;
+  /** Client-generated UUID; unique index prevents double-submits (rule 7). */
+  idempotencyKey: string;
 }
 
 export interface IInventory {
@@ -133,13 +160,21 @@ export interface ITransaction {
   createdBy: Types.ObjectId;
 }
 
-export interface JwtPayload {
+export interface StaffJwtPayload {
   sub: string; // user id
   role: UserRole;
 }
+
+export interface FarmerJwtPayload {
+  sub: string; // farmer id
+  scope: "farmer";
+}
+
+export type JwtPayload = StaffJwtPayload | FarmerJwtPayload;
 
 export interface AuthRequest extends Request {
   user?: { id: Types.ObjectId; role: UserRole };
   /** Full user document loaded by requireAuth; avoids a second fetch in handlers. */
   userDoc?: HydratedDocument<IUser>;
+  farmer?: { id: Types.ObjectId };
 }

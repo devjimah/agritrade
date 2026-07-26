@@ -203,3 +203,60 @@ describe("PUT /api/farmers/:id", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("POST /api/farmers/:id/pin", () => {
+  it("sets the farmer's PIN", async () => {
+    const farmer = await FarmerModel.create(validFarmer);
+    const res = await request(app)
+      .post(`/api/farmers/${farmer._id}/pin`)
+      .set(auth())
+      .send({ pin: "1234" });
+    expect(res.status).toBe(204);
+    const updated = await FarmerModel.findById(farmer._id).select("+pinHash");
+    expect(updated?.pinHash).toBeTruthy();
+  });
+
+  it("404 on unknown farmer", async () => {
+    const res = await request(app)
+      .post("/api/farmers/64b000000000000000000000/pin")
+      .set(auth())
+      .send({ pin: "1234" });
+    expect(res.status).toBe(404);
+  });
+
+  it("400 on non-numeric PIN", async () => {
+    const farmer = await FarmerModel.create(validFarmer);
+    const res = await request(app)
+      .post(`/api/farmers/${farmer._id}/pin`)
+      .set(auth())
+      .send({ pin: "12ab" });
+    expect(res.status).toBe(400);
+  });
+
+  it("400 on wrong-length PIN", async () => {
+    const farmer = await FarmerModel.create(validFarmer);
+    const res = await request(app)
+      .post(`/api/farmers/${farmer._id}/pin`)
+      .set(auth())
+      .send({ pin: "123" });
+    expect(res.status).toBe(400);
+  });
+
+  it("401 without staff token", async () => {
+    const farmer = await FarmerModel.create(validFarmer);
+    const res = await request(app)
+      .post(`/api/farmers/${farmer._id}/pin`)
+      .send({ pin: "1234" });
+    expect(res.status).toBe(401);
+  });
+
+  it("401 with a farmer-scoped token", async () => {
+    const farmer = await FarmerModel.create(validFarmer);
+    const farmerToken = signToken({ sub: farmer._id.toString(), scope: "farmer" });
+    const res = await request(app)
+      .post(`/api/farmers/${farmer._id}/pin`)
+      .set({ Authorization: `Bearer ${farmerToken}` })
+      .send({ pin: "1234" });
+    expect(res.status).toBe(401);
+  });
+});

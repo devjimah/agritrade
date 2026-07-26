@@ -1,13 +1,9 @@
 import { AppError } from "../errors/AppError";
 import { UserDocument, UserModel } from "../models/user.model";
-import { comparePassword } from "../utils/password";
+import { DUMMY_HASH, comparePassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 
 const INVALID_CREDENTIALS = () => new AppError("Invalid email or password", 401);
-
-// bcrypt hash of a random unused password; compared against when the email is
-// unknown so lookup failures take as long as password failures (timing oracle).
-const DUMMY_HASH = "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
 export async function login(
   email: string,

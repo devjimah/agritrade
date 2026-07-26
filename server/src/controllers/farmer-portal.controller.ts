@@ -1,0 +1,88 @@
+import { NextFunction, Request, Response } from "express";
+import { AppError } from "../errors/AppError";
+import { FarmerModel } from "../models/farmer.model";
+import * as advanceService from "../services/advance.service";
+import * as repaymentService from "../services/repayment.service";
+import { AuthRequest } from "../types";
+import { loginFarmer } from "../services/farmer-auth.service";
+import * as repaymentClaimService from "../services/repayment-claim.service";
+import { farmerLoginSchema } from "../validators/farmer-auth.validator";
+import { listMyAdvancesQuerySchema } from "../validators/advance.validator";
+import { listMyRepaymentsQuerySchema } from "../validators/repayment.validator";
+import { listMyClaimsQuerySchema, submitClaimSchema } from "../validators/repayment-claim.validator";
+
+export async function farmerLoginController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { phone, pin } = farmerLoginSchema.parse(req.body);
+    const { token } = await loginFarmer(phone, pin);
+    res.json({ success: true, data: { token } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function meController(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    if (!req.farmer) throw new AppError("Not authenticated", 401);
+    // Explicit allow-list, not "everything except pinHash": `notes` is what a
+    // TRADER writes about this farmer (credit-worthiness observations) and must
+    // never be readable by the farmer. An allow-list also means a future field
+    // on FarmerModel is not exposed here by default.
+    const farmer = await FarmerModel.findById(req.farmer.id).select("fullName phone village");
+    if (!farmer) throw new AppError("Farmer not found", 404);
+    res.json({ success: true, data: { farmer } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function myAdvancesController(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    if (!req.farmer) throw new AppError("Not authenticated", 401);
+    const query = listMyAdvancesQuerySchema.parse(req.query);
+    const farmerId = req.farmer.id.toString();
+    const [result, summary] = await Promise.all([
+      advanceService.listAdvances({ ...query, farmerId }),
+      advanceService.getFarmerAdvanceSummary(farmerId),
+    ]);
+    res.json({ success: true, data: { ...result, summary } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function myRepaymentsController(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    if (!req.farmer) throw new AppError("Not authenticated", 401);
+    const query = listMyRepaymentsQuerySchema.parse(req.query);
+    const result = await repaymentService.listRepayments({
+      ...query,
+      farmerId: req.farmer.id.toString(),
+    });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function submitClaimController(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    if (!req.farmer) throw new AppError("Not authenticated", 401);
+    const input = submitClaimSchema.parse(req.body);
+    const claim = await repaymentClaimService.submitClaim(req.farmer.id, input);
+    res.status(201).json({ success: true, data: { claim } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function myClaimsController(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    if (!req.farmer) throw new AppError("Not authenticated", 401);
+    const query = listMyClaimsQuerySchema.parse(req.query);
+    const result = await repaymentClaimService.listMyClaims(req.farmer.id, query);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}

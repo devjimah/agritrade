@@ -16,6 +16,7 @@ export async function requireAuth(req: AuthRequest, _res: Response, next: NextFu
     } catch {
       throw new AppError("Not authenticated", 401);
     }
+    if (!("role" in payload)) throw new AppError("Not authenticated", 401);
 
     const user = await UserModel.findById(payload.sub);
     if (!user) throw new AppError("Not authenticated", 401);

@@ -26,5 +26,15 @@ export const listAdvancesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+// Portal-scoped: deliberately has no `farmerId` field, so a farmer can never
+// smuggle another farmer's id through the query string. The controller forces
+// farmerId from the authenticated token instead of parsing it from input.
+export const listMyAdvancesQuerySchema = z.object({
+  repaymentStatus: z.enum(REPAYMENT_STATUSES).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export type CreateAdvanceInput = z.infer<typeof createAdvanceSchema>;
 export type ListAdvancesQuery = z.infer<typeof listAdvancesQuerySchema>;
+export type ListMyAdvancesQuery = z.infer<typeof listMyAdvancesQuerySchema>;

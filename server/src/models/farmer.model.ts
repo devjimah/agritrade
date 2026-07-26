@@ -11,6 +11,9 @@ const farmerSchema = new Schema<IFarmer>(
     phone: { type: String, required: true, unique: true, trim: true },
     village: { type: String, trim: true, maxlength: 120, default: "" },
     notes: { type: String, trim: true, maxlength: 1000, default: "" },
+    // No `required`: farmers exist before they're onboarded to the self-service
+    // portal, so most documents have no PIN set yet.
+    pinHash: { type: String, select: false },
   },
   { timestamps: true, versionKey: false }
 );

@@ -9,6 +9,7 @@ A digital credit and inventory system for cereal traders in Ghana. It replaces p
 - **Credit sales & payments** — sell stock to customers on credit and collect over time
 - **Inventory** — per-crop stock levels (maize, rice, millet, sorghum, soybeans)
 - **Reports & dashboard** — outstanding balances, aging, stock, and season summaries
+- **Farmer portal** — farmers sign in with a phone number and a trader-set PIN to check their own balance and submit repayment claims for the trader to confirm ([details](#farmer-portal))
 - **Audit-safe ledger** — money amounts are stored as integer pesewas (no floating-point errors), records are never deleted, and every financial write goes into a `transactions` ledger inside a database transaction
 
 ## Tech stack
@@ -178,6 +179,24 @@ Tests spin up an in-memory MongoDB replica set automatically — no local databa
 - **Login fails with the default credentials** — the database hasn't been seeded. Run `npm run seed` (or `npm run seed:demo`) from `server/`.
 - **Client can't reach the API** — make sure the server is running on port 5000 and `CLIENT_ORIGIN` in `server/.env` matches the client URL.
 - **`npm run db:dev` data gone after reboot** — expected; the dev mongod doesn't run as a service. Run `npm run db:dev` again (your data on disk is kept).
+
+## Farmer portal
+
+Farmers can sign in to a read-mostly self-service portal at **`/portal`** to see
+their own advances, repayment history, and outstanding balance — separate from
+the trader-facing app at `/`. A trader and a farmer can be signed in at the same
+time in one browser (the two sessions use different tokens).
+
+Farmers sign in with their **phone number and a PIN the trader sets** for them:
+open the farmer's detail page in the trader app and use *Set portal PIN*. There
+is no self-registration, and the PIN is stored hashed like any password.
+
+A farmer can also submit a **repayment claim** ("I delivered N bags against this
+advance"). A claim is only a request: it does **not** touch inventory, the
+advance balance, or the transaction ledger. Nothing moves until a trader reviews
+it under *Repayment claims* in the trader app and confirms it — confirmation
+records the repayment exactly as if the trader had entered it directly.
+Rejecting a claim has no financial effect at all.
 
 ## License
 

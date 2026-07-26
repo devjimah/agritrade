@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ComponentType, FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, CircleDollarSign, PackageCheck, Phone, Plus, Wheat } from "lucide-react";
+import { ArrowLeft, CircleDollarSign, KeyRound, PackageCheck, Phone, Plus, Wheat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
@@ -22,7 +22,7 @@ import { formatGHS, parseGHSToPesewas } from "@/lib/money";
 import { getApiErrorMessage } from "@/services/api";
 import { createAdvance, getAdvanceSummary, listAdvances } from "@/services/advances";
 import type { Advance, AdvanceSummary, RepaymentStatus } from "@/services/advances";
-import { getFarmer } from "@/services/farmers";
+import { getFarmer, setFarmerPin } from "@/services/farmers";
 import type { Farmer } from "@/services/farmers";
 import { createRepayment } from "@/services/repayments";
 
@@ -61,6 +61,12 @@ export function FarmerDetailPage() {
   const [repayError, setRepayError] = useState("");
   const [repaySaving, setRepaySaving] = useState(false);
   const [repayKey, setRepayKey] = useState("");
+
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinConfirm, setPinConfirm] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [pinSaving, setPinSaving] = useState(false);
 
   const requestSeq = useRef(0);
 
@@ -124,6 +130,38 @@ export function FarmerDetailPage() {
       setFormError(getApiErrorMessage(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  function openSetPin() {
+    setPin("");
+    setPinConfirm("");
+    setPinError("");
+    setPinDialogOpen(true);
+  }
+
+  async function handlePinSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!id) return;
+    if (!/^\d{4,6}$/.test(pin)) {
+      setPinError("PIN must be 4-6 digits");
+      return;
+    }
+    if (pin !== pinConfirm) {
+      setPinError("PINs do not match");
+      return;
+    }
+    setPinSaving(true);
+    setPinError("");
+    try {
+      await setFarmerPin(id, pin);
+      setPinDialogOpen(false);
+      setPin("");
+      setPinConfirm("");
+    } catch (err) {
+      setPinError(getApiErrorMessage(err));
+    } finally {
+      setPinSaving(false);
     }
   }
 
@@ -192,9 +230,14 @@ export function FarmerDetailPage() {
             </p>
             {farmer.notes && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{farmer.notes}</p>}
           </div>
-          <Button onClick={openRecordAdvance}>
-            <Plus className="mr-1 h-4 w-4" /> Record advance
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={openSetPin}>
+              <KeyRound className="mr-1 h-4 w-4" /> Set portal PIN
+            </Button>
+            <Button onClick={openRecordAdvance}>
+              <Plus className="mr-1 h-4 w-4" /> Record advance
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -264,6 +307,50 @@ export function FarmerDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={pinDialogOpen} onClose={() => setPinDialogOpen(false)} title="Set portal PIN">
+        <form onSubmit={handlePinSubmit} className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            The farmer will use this PIN to sign in to the portal. It is not shown again after
+            saving.
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="pin">PIN</Label>
+            <Input
+              id="pin"
+              required
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="4-6 digits"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="pinConfirm">Confirm PIN</Label>
+            <Input
+              id="pinConfirm"
+              required
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="4-6 digits"
+              value={pinConfirm}
+              onChange={(e) => setPinConfirm(e.target.value)}
+            />
+          </div>
+          {pinError && <p className="text-sm text-red-600">{pinError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setPinDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pinSaving}>
+              {pinSaving ? "Saving..." : "Set PIN"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
 
       <Dialog open={repayAdvance !== null} onClose={() => setRepayAdvance(null)} title="Record repayment">
         {repayAdvance && (
