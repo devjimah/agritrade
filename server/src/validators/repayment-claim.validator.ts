@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { objectIdSchema } from "./farmer.validator";
+import { REPAYMENT_CLAIM_STATUSES } from "../types";
 
 export const submitClaimSchema = z.object({
   advanceId: objectIdSchema,
@@ -21,5 +22,18 @@ export const listMyClaimsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+// Staff-facing queue query: filters by status, no farmer scoping.
+export const listClaimsQuerySchema = z.object({
+  status: z.enum(REPAYMENT_CLAIM_STATUSES).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const rejectClaimSchema = z.object({
+  reason: z.string().trim().min(1, "Rejection reason is required").max(1000),
+});
+
 export type SubmitClaimInput = z.infer<typeof submitClaimSchema>;
 export type ListMyClaimsQuery = z.infer<typeof listMyClaimsQuerySchema>;
+export type ListClaimsQuery = z.infer<typeof listClaimsQuerySchema>;
+export type RejectClaimInput = z.infer<typeof rejectClaimSchema>;
