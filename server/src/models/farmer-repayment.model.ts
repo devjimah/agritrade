@@ -16,7 +16,12 @@ const farmerRepaymentSchema = new Schema<IFarmerRepayment>(
     },
     // Unique: a retried or double-clicked submission carries the same key and
     // is rejected instead of recorded twice (duplicate-repayment rule).
-    idempotencyKey: { type: String, required: true, unique: true },
+    // select: false — internal plumbing, and readable keys are dangerous: a
+    // farmer who could read one could submit a claim carrying it and make the
+    // trader's confirm resolve to that existing repayment with no financial
+    // effect. Nothing reads this field back; `unique` and the E11000-recovery
+    // lookups filter on it, which select: false does not affect.
+    idempotencyKey: { type: String, required: true, unique: true, select: false },
     notes: { type: String, trim: true, maxlength: 1000, default: "" },
   },
   { timestamps: true, versionKey: false }

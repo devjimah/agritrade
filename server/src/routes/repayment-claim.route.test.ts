@@ -207,6 +207,88 @@ describe("POST /api/repayment-claims/:id/confirm", () => {
     expect(await FarmerRepaymentModel.countDocuments()).toBe(1);
   });
 
+  it("a claim carrying an EXISTING repayment's idempotencyKey still moves real money", async () => {
+    // Finding 1A regression. Previously confirmClaim forwarded the farmer's own
+    // idempotencyKey into createRepayment, so a farmer who copied the key of an
+    // existing repayment got a "Confirmed" badge with ZERO financial effect:
+    // createRepayment's E11000 branch just handed back that old repayment.
+    const stolenKey = randomUUID();
+    const firstRepayment = await request(app)
+      .post("/api/repayments")
+      .set(authStaff())
+      .send({ advanceId, bagsSupplied: 2, idempotencyKey: stolenKey });
+    expect(firstRepayment.status).toBe(201);
+
+    // The farmer submits a claim whose key collides with that repayment's.
+    const claim = await RepaymentClaimModel.create({
+      advanceId,
+      farmerId,
+      bagsClaimed: 3,
+      idempotencyKey: stolenKey,
+    });
+
+    const bagsRepaidBefore = (await FarmerAdvanceModel.findById(advanceId))!.bagsRepaid;
+    const stockBefore = (await InventoryModel.findOne({ cropType: "maize" }))!.quantityBags;
+    const txCountBefore = await TransactionModel.countDocuments();
+    const repaymentCountBefore = await FarmerRepaymentModel.countDocuments();
+
+    const res = await confirm(claim._id.toString());
+    expect(res.status).toBe(200);
+    expect(res.body.data.claim.status).toBe("confirmed");
+
+    // The confirm produced a REAL effect — this is the whole point.
+    expect((await FarmerAdvanceModel.findById(advanceId))!.bagsRepaid).toBe(bagsRepaidBefore + 3);
+    expect((await InventoryModel.findOne({ cropType: "maize" }))!.quantityBags).toBe(
+      stockBefore + 3
+    );
+    expect(await TransactionModel.countDocuments()).toBe(txCountBefore + 1);
+    expect(await FarmerRepaymentModel.countDocuments()).toBe(repaymentCountBefore + 1);
+
+    // And the claim points at the NEW repayment, not the pre-existing one.
+    const updated = await RepaymentClaimModel.findById(claim._id);
+    const linked = await FarmerRepaymentModel.findById(updated!.resultingRepaymentId);
+    expect(linked!.bagsSupplied).toBe(3);
+    expect(linked!._id.toString()).not.toBe(firstRepayment.body.data.repayment._id);
+  });
+
+  it("rejected-race path: repayment stands, caller is told to reconcile instead of getting a 200", async () => {
+    // Mirror of the confirmed-race test above, but the write that beats ours is
+    // a REJECT. Our createRepayment has already committed bags/inventory/ledger
+    // by then, so returning 200 on a claim that reads "rejected" would hide an
+    // orphaned repayment from the trader.
+    const claim = await submitClaim(4);
+
+    const spy = vi
+      .spyOn(RepaymentClaimModel, "findOneAndUpdate")
+      .mockImplementationOnce(async () => {
+        await RepaymentClaimModel.updateOne(
+          { _id: claim._id },
+          {
+            $set: {
+              status: "rejected",
+              rejectionReason: "Bags did not match delivery note",
+              reviewedBy: claim._id,
+              reviewedAt: new Date(),
+            },
+          }
+        );
+        return null;
+      });
+
+    const res = await confirm(claim._id.toString());
+    spy.mockRestore();
+
+    expect(res.status).toBe(409);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toContain("reconcile");
+
+    // No compensating write: the repayment and its ledger entry stand.
+    expect(await FarmerRepaymentModel.countDocuments()).toBe(1);
+    expect(await TransactionModel.countDocuments({ type: "repayment_received" })).toBe(1);
+    expect((await FarmerAdvanceModel.findById(advanceId))!.bagsRepaid).toBe(4);
+    expect((await RepaymentClaimModel.findById(claim._id))!.status).toBe("rejected");
+  });
+
   it("401 without token", async () => {
     const claim = await submitClaim(2);
     const res = await request(app).post(`/api/repayment-claims/${claim._id}/confirm`);

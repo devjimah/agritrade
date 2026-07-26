@@ -95,12 +95,24 @@ export async function submitClaim(
     });
   } catch (err) {
     // True idempotency: a retry of a request that already committed (response
-    // lost, double-click) gets the original claim back, not an error.
+    // lost, double-click) gets the original claim back, not an error. Scoped
+    // to farmerId: the key space is global (one unique index across all
+    // farmers), so an UNSCOPED lookup here would hand a farmer whoever else's
+    // claim happened to collide — cross-tenant disclosure.
     if (isIdempotencyKeyConflict(err)) {
       const existing = await RepaymentClaimModel.findOne({
         idempotencyKey: input.idempotencyKey,
+        farmerId,
       });
       if (existing) return existing;
+      // The key belongs to another farmer (or vanished). Deliberately the
+      // same 409 + message as a key we can't resolve at all, so the response
+      // never distinguishes "taken by someone else" from "taken by you but
+      // unreadable". A caller who owns the key gets 201; a caller who does
+      // not gets 409 — that difference is not an oracle worth closing, since
+      // a farmer already knows with certainty which keys are their own (they
+      // generated them), so the only "information" leaked is about a key the
+      // attacker had to guess in a 122-bit UUID space.
       throw new AppError("This claim was already submitted", 409);
     }
     throw err;
@@ -156,9 +168,13 @@ export async function listClaims(query: ListClaimsQuery): Promise<StaffClaimList
  * financial effect. No transaction, no ledger/inventory/advance logic here:
  * all of that lives in createRepayment and must not be duplicated.
  *
- * The idempotencyKey passed through is the claim's own key, so a double
- * confirm (retry, double-click) resolves via createRepayment's existing
- * idempotency handling rather than creating a second repayment.
+ * The repayment's idempotencyKey is DERIVED SERVER-SIDE from the claim id
+ * (see repaymentKeyForClaim) and never taken from the claim's own
+ * farmer-supplied key: a farmer could otherwise submit a claim carrying the
+ * key of an EXISTING repayment, and createRepayment's E11000 branch would
+ * hand back that unrelated repayment with zero financial effect while this
+ * function marked the claim "confirmed". Derivation keeps the double-confirm
+ * protection (same claim -> same key) without letting the farmer choose it.
  *
  * If createRepayment throws (e.g. the advance went stale and its guarded
  * update now matches nothing -> 409), that error propagates as-is and the
@@ -169,14 +185,27 @@ export async function listClaims(query: ListClaimsQuery): Promise<StaffClaimList
  * Retry/convergence property: if the process dies AFTER createRepayment
  * commits but BEFORE the claim-status write below lands, the claim is left
  * "pending" and reappears in the queue. A subsequent re-confirm calls
- * createRepayment again with the SAME idempotencyKey (claim.idempotencyKey
- * never changes), so createRepayment's own E11000 branch returns the
+ * createRepayment again with the SAME derived key (the claim's _id never
+ * changes), so createRepayment's own E11000 branch returns the
  * ORIGINAL repayment instead of creating a second one — the claim write
  * below then converges on that same repayment id. This is precisely why
  * this path must never be "optimized" into pre-checking for an existing
  * repayment and throwing if one is found: doing so would turn a safe,
  * convergent retry into a permanently stuck claim.
  */
+/**
+ * Server-derived repayment key: deterministic per claim, so re-confirming the
+ * same claim converges on one repayment, and in a `claim:` namespace no farmer
+ * input can reach — a farmer-supplied UUID can never equal one of these, so a
+ * claim can never be aimed at a pre-existing repayment. Not a UUID, and that's
+ * fine: the `z.uuid()` in createRepaymentSchema guards the HTTP boundary only;
+ * createRepayment itself takes the key as an opaque string and the model field
+ * is `type: String`.
+ */
+function repaymentKeyForClaim(claimId: Types.ObjectId): string {
+  return `claim:${claimId.toString()}`;
+}
+
 export async function confirmClaim(
   claimId: string,
   staffUserId: Types.ObjectId
@@ -191,7 +220,7 @@ export async function confirmClaim(
     {
       advanceId: claim.advanceId.toString(),
       bagsSupplied: claim.bagsClaimed,
-      idempotencyKey: claim.idempotencyKey,
+      idempotencyKey: repaymentKeyForClaim(claim._id),
       notes: "",
     },
     staffUserId
@@ -202,7 +231,8 @@ export async function confirmClaim(
   // status: "pending" here actually flips the claim — last write does not
   // silently clobber the first. The idempotencyKey already prevents a
   // second repayment either way; this guard makes the claim-flip itself
-  // single-winner too.
+  // single-winner too. The derived key is claim-scoped, so both racers pass
+  // the identical key.
   const updated = await RepaymentClaimModel.findOneAndUpdate(
     { _id: claim._id, status: "pending" },
     {
@@ -217,16 +247,37 @@ export async function confirmClaim(
   );
   if (updated) return updated;
 
-  // We lost the claim-flip race: some other caller's write landed first, so
-  // `updated` is null here. By this point our createRepayment call above has
-  // ALREADY run — but because both racers pass the same claim.idempotencyKey,
-  // createRepayment's E11000 branch means only ONE repayment document exists
-  // no matter who "won". There is nothing to undo and no compensating write
-  // belongs here; this branch only corrects what gets REPORTED to the loser,
-  // by re-reading the claim so the response reflects the true post-race state
-  // (confirmed, with the winner's reviewedBy/resultingRepaymentId) instead of
-  // the stale in-memory "pending" snapshot taken before either write landed.
+  // We lost the claim-flip race: someone else's write landed first, so
+  // `updated` is null. Our createRepayment call above has ALREADY committed
+  // real bags/inventory/ledger by this point, so what happens next depends
+  // entirely on WHICH write beat us — re-read to find out rather than assuming
+  // it was a confirm.
+  //
+  // NO COMPENSATING WRITE BELONGS IN EITHER BRANCH. The ledger is append-only
+  // and the repayment we created is legitimate (the guarded advance update
+  // inside createRepayment accepted it); reversing it here would fabricate a
+  // second, false ledger movement to paper over a reporting problem. The only
+  // thing this branch can honestly do is tell the caller the truth.
   const current = await RepaymentClaimModel.findById(claim._id);
+
+  // Another trader REJECTED the claim in the window between our
+  // createRepayment and our flip. The money moved and is correct, but the
+  // claim's audit trail now says "rejected" with no resultingRepaymentId, so
+  // the repayment is orphaned from any claim. Surface that loudly instead of
+  // returning 200 on a claim that reads rejected.
+  if (current?.status === "rejected") {
+    throw new AppError(
+      "A repayment WAS recorded for this claim, but another user rejected the claim first — " +
+        "the repayment stands and the ledger is append-only, so reconcile this manually",
+      409
+    );
+  }
+
+  // Otherwise another trader won the CONFIRM race. Because both racers derive
+  // the same claim-scoped key, only ONE repayment document exists; return the
+  // true post-race state (confirmed, with the winner's
+  // reviewedBy/resultingRepaymentId) rather than the stale "pending" snapshot
+  // taken before either write landed.
   return current ?? claim;
 }
 

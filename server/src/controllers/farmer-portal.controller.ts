@@ -24,8 +24,11 @@ export async function farmerLoginController(req: Request, res: Response, next: N
 export async function meController(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     if (!req.farmer) throw new AppError("Not authenticated", 401);
-    // No `.select("+pinHash")` — the schema's `select: false` keeps it out.
-    const farmer = await FarmerModel.findById(req.farmer.id);
+    // Explicit allow-list, not "everything except pinHash": `notes` is what a
+    // TRADER writes about this farmer (credit-worthiness observations) and must
+    // never be readable by the farmer. An allow-list also means a future field
+    // on FarmerModel is not exposed here by default.
+    const farmer = await FarmerModel.findById(req.farmer.id).select("fullName phone village");
     if (!farmer) throw new AppError("Farmer not found", 404);
     res.json({ success: true, data: { farmer } });
   } catch (err) {

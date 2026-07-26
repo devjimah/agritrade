@@ -99,6 +99,38 @@ describe("POST /api/farmer-portal/login", () => {
       .send({ phone: "0244123456" });
     expect(res.status).toBe(400);
   });
+
+  it("400 when pin exceeds the max length", async () => {
+    const res = await request(app)
+      .post("/api/farmer-portal/login")
+      .send({ phone: "0244123456", pin: "1".repeat(201) });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("farmer-portal router auth boundary", () => {
+  // Finding 4: the router is fail-CLOSED via router.use(requireFarmerAuth),
+  // with /login declared above it as the only public route. These two
+  // assertions together pin that boundary — a regression that moved the
+  // router.use above /login, or dropped it entirely, breaks one of them.
+  it("/login is reachable without a token", async () => {
+    await seedFarmerWithPin();
+    const res = await request(app)
+      .post("/api/farmer-portal/login")
+      .send({ phone: "0244123456", pin: "1234" });
+    expect(res.status).toBe(200);
+  });
+
+  it.each([
+    ["get", "/api/farmer-portal/me"],
+    ["get", "/api/farmer-portal/advances"],
+    ["get", "/api/farmer-portal/repayments"],
+    ["get", "/api/farmer-portal/repayment-claims"],
+    ["post", "/api/farmer-portal/repayment-claims"],
+  ] as const)("%s %s 401s without a token", async (method, path) => {
+    const res = await request(app)[method](path);
+    expect(res.status).toBe(401);
+  });
 });
 
 describe("authenticated farmer-portal endpoints", () => {
@@ -143,6 +175,16 @@ describe("authenticated farmer-portal endpoints", () => {
     it("never includes pinHash", async () => {
       const res = await request(app).get("/api/farmer-portal/me").set(authA());
       expect(JSON.stringify(res.body)).not.toContain("pinHash");
+    });
+
+    it("never includes the trader-facing notes field", async () => {
+      // validFarmer seeds notes: "Maize farmer" — a trader's private observation
+      // about this farmer, so the assertion below is meaningful.
+      expect((await FarmerModel.findById(farmerA._id))!.notes).toBe("Maize farmer");
+      const res = await request(app).get("/api/farmer-portal/me").set(authA());
+      expect(res.status).toBe(200);
+      expect(res.body.data.farmer).not.toHaveProperty("notes");
+      expect(JSON.stringify(res.body)).not.toContain("Maize farmer");
     });
 
     it("401 with no token", async () => {
@@ -234,6 +276,29 @@ describe("authenticated farmer-portal endpoints", () => {
       expect(res.status).toBe(200);
       expect(res.body.data.repayments).toHaveLength(1);
       expect(res.body.data.repayments[0].farmerId).toBe(farmerA._id.toString());
+    });
+
+    it("never exposes a repayment's idempotencyKey", async () => {
+      // A readable repayment key is a weapon: the farmer could submit a claim
+      // carrying it and make the trader's confirm resolve to that existing
+      // repayment with no financial effect (Finding 1A).
+      const advance = await FarmerAdvanceModel.create({
+        farmerId: farmerA._id,
+        amountGiven: 50_000,
+        cropType: "maize",
+        expectedBags: 10,
+      });
+      await FarmerRepaymentModel.create({
+        advanceId: advance._id,
+        farmerId: farmerA._id,
+        cropType: "maize",
+        bagsSupplied: 3,
+        idempotencyKey: "44444444-4444-4444-4444-444444444444",
+      });
+      const res = await request(app).get("/api/farmer-portal/repayments").set(authA());
+      expect(res.status).toBe(200);
+      expect(res.body.data.repayments[0]).not.toHaveProperty("idempotencyKey");
+      expect(JSON.stringify(res.body)).not.toContain("44444444-4444");
     });
 
     it("ignores a tampered farmerId query param and only returns own data", async () => {
@@ -445,6 +510,53 @@ describe("authenticated farmer-portal endpoints", () => {
 
       const count = await RepaymentClaimModel.countDocuments();
       expect(count).toBe(1);
+    });
+
+    it("a farmer reusing ANOTHER farmer's idempotencyKey never receives that farmer's claim", async () => {
+      // Finding 1B regression. The E11000 recovery lookup used to be unscoped,
+      // so a key collision handed the caller whoever else's claim document
+      // owned that key — cross-tenant disclosure, and it could even come back
+      // reading status "confirmed" on a claim B had just "submitted".
+      const advanceA = await FarmerAdvanceModel.create({
+        farmerId: farmerA._id,
+        amountGiven: 10_000,
+        cropType: "maize",
+        expectedBags: 5,
+      });
+      const advanceB = await FarmerAdvanceModel.create({
+        farmerId: farmerB._id,
+        amountGiven: 20_000,
+        cropType: "beans",
+        expectedBags: 8,
+      });
+      const sharedKey = "12345678-1234-4234-8234-123456789abc";
+
+      const resA = await request(app)
+        .post("/api/farmer-portal/repayment-claims")
+        .set(authA())
+        .send({ advanceId: advanceA._id.toString(), bagsClaimed: 2, idempotencyKey: sharedKey });
+      expect(resA.status).toBe(201);
+      const claimAId = resA.body.data.claim._id;
+      // Make A's claim visibly distinctive so leakage would be unmistakable.
+      await RepaymentClaimModel.updateOne({ _id: claimAId }, { $set: { status: "confirmed" } });
+
+      const tokenB = signToken({ sub: farmerB._id.toString(), scope: "farmer" });
+      const resB = await request(app)
+        .post("/api/farmer-portal/repayment-claims")
+        .set({ Authorization: `Bearer ${tokenB}` })
+        .send({ advanceId: advanceB._id.toString(), bagsClaimed: 4, idempotencyKey: sharedKey });
+
+      expect(resB.status).toBe(409);
+      expect(JSON.stringify(resB.body)).not.toContain(claimAId);
+      expect(JSON.stringify(resB.body)).not.toContain(advanceA._id.toString());
+      expect(JSON.stringify(resB.body)).not.toContain("confirmed");
+
+      // B got no claim of their own, and A's claim is untouched.
+      expect(await RepaymentClaimModel.countDocuments({ farmerId: farmerB._id })).toBe(0);
+      expect(await RepaymentClaimModel.countDocuments()).toBe(1);
+      const claimA = await RepaymentClaimModel.findById(claimAId);
+      expect(claimA!.farmerId.toString()).toBe(farmerA._id.toString());
+      expect(claimA!.bagsClaimed).toBe(2);
     });
 
     it("401 with no token", async () => {

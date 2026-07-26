@@ -22,14 +22,20 @@ const loginLimiter = rateLimit({
   message: { success: false, error: { message: "Too many login attempts, try again later", errors: [] } },
 });
 
+// The ONLY public route in this file, and it must stay above the router.use
+// below — express runs middleware in declaration order.
 router.post("/login", loginLimiter, farmerLoginController);
 
-// Applied per-route (not router.use) so /login above stays reachable
-// without a token while everything below it requires one.
-router.get("/me", requireFarmerAuth, meController);
-router.get("/advances", requireFarmerAuth, myAdvancesController);
-router.get("/repayments", requireFarmerAuth, myRepaymentsController);
-router.post("/repayment-claims", requireFarmerAuth, submitClaimController);
-router.get("/repayment-claims", requireFarmerAuth, myClaimsController);
+// Fail-CLOSED boundary: every route declared BELOW this line requires a farmer
+// token automatically. Do not add per-route requireFarmerAuth, and do not add
+// public routes below here — a new route added under this line is authenticated
+// by default, which is the behaviour we want when someone forgets.
+router.use(requireFarmerAuth);
+
+router.get("/me", meController);
+router.get("/advances", myAdvancesController);
+router.get("/repayments", myRepaymentsController);
+router.post("/repayment-claims", submitClaimController);
+router.get("/repayment-claims", myClaimsController);
 
 export default router;
