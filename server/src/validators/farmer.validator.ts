@@ -38,6 +38,13 @@ export const objectIdSchema = z
   .string()
   .refine((v) => Types.ObjectId.isValid(v), "Invalid id");
 
+// A farmer's portal PIN, not a password: no complexity rules, just digits a
+// low-literacy user can key in on a phone keypad.
+export const setFarmerPinSchema = z.object({
+  pin: z.string().regex(/^\d{4,6}$/, "PIN must be 4-6 digits"),
+});
+
 export type CreateFarmerInput = z.infer<typeof createFarmerSchema>;
 export type UpdateFarmerInput = z.infer<typeof updateFarmerSchema>;
 export type ListFarmersQuery = z.infer<typeof listFarmersQuerySchema>;
+export type SetFarmerPinInput = z.infer<typeof setFarmerPinSchema>;

@@ -1,5 +1,6 @@
 import { AppError } from "../errors/AppError";
 import { FarmerDocument, FarmerModel } from "../models/farmer.model";
+import { hashPassword } from "../utils/password";
 import {
   CreateFarmerInput,
   ListFarmersQuery,
@@ -59,6 +60,13 @@ export async function getFarmerById(id: string): Promise<FarmerDocument> {
   const farmer = await FarmerModel.findById(id);
   if (!farmer) throw new AppError("Farmer not found", 404);
   return farmer;
+}
+
+export async function setFarmerPin(id: string, pin: string): Promise<void> {
+  const farmer = await FarmerModel.findById(id);
+  if (!farmer) throw new AppError("Farmer not found", 404);
+  farmer.pinHash = await hashPassword(pin);
+  await farmer.save();
 }
 
 export async function updateFarmer(id: string, input: UpdateFarmerInput): Promise<FarmerDocument> {

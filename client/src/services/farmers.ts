@@ -47,3 +47,7 @@ export async function updateFarmer(id: string, input: Partial<FarmerInput>): Pro
   const res = await api.put(`/farmers/${id}`, input);
   return res.data.data.farmer;
 }
+
+export async function setFarmerPin(id: string, pin: string): Promise<void> {
+  await api.post(`/farmers/${id}/pin`, { pin });
+}

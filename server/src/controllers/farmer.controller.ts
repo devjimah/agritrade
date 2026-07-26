@@ -4,6 +4,7 @@ import {
   createFarmerSchema,
   listFarmersQuerySchema,
   objectIdSchema,
+  setFarmerPinSchema,
   updateFarmerSchema,
 } from "../validators/farmer.validator";
 
@@ -43,6 +44,17 @@ export async function updateFarmerController(req: Request, res: Response, next: 
     const input = updateFarmerSchema.parse(req.body);
     const farmer = await farmerService.updateFarmer(id, input);
     res.json({ success: true, data: { farmer } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function setFarmerPinController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = objectIdSchema.parse(req.params.id);
+    const { pin } = setFarmerPinSchema.parse(req.body);
+    await farmerService.setFarmerPin(id, pin);
+    res.status(204).send();
   } catch (err) {
     next(err);
   }
