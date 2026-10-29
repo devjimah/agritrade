@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FileBarChart } from "lucide-react";
+import { AiUsageCard } from "@/components/ai/AiUsageCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import {
@@ -78,7 +79,7 @@ export function ReportsPage() {
         </p>
       )}
 
-      <section className="grid gap-4 xl:grid-cols-2">
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-base">Outstanding customer debts</CardTitle>
@@ -96,7 +97,7 @@ export function ReportsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
-                    <TableHead>Phone</TableHead>
+                    <TableHead className="hidden sm:table-cell">Phone</TableHead>
                     <TableHead>Open sales</TableHead>
                     <TableHead className="text-right">Owed</TableHead>
                   </TableRow>
@@ -112,7 +113,7 @@ export function ReportsPage() {
                           {debtor.fullName}
                         </Link>
                       </TableCell>
-                      <TableCell>{debtor.phone}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{debtor.phone}</TableCell>
                       <TableCell>{debtor.unpaidSales}</TableCell>
                       <TableCell className="text-right font-medium">
                         {formatGHS(debtor.outstandingBalance)}
@@ -142,7 +143,7 @@ export function ReportsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Farmer</TableHead>
-                    <TableHead>Phone</TableHead>
+                    <TableHead className="hidden sm:table-cell">Phone</TableHead>
                     <TableHead>Bags owed</TableHead>
                     <TableHead className="text-right">Open value</TableHead>
                   </TableRow>
@@ -158,7 +159,7 @@ export function ReportsPage() {
                           {row.fullName}
                         </Link>
                       </TableCell>
-                      <TableCell>{row.phone}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{row.phone}</TableCell>
                       <TableCell>{row.bagsOutstanding}</TableCell>
                       <TableCell className="text-right font-medium">
                         {formatGHS(row.outstandingAmount)}
@@ -200,20 +201,20 @@ export function ReportsPage() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Details</TableHead>
+                  <TableHead className="hidden sm:table-cell">Details</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions.map((tx) => (
                   <TableRow key={tx._id}>
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell className="sm:whitespace-nowrap">
                       {new Date(tx.createdAt).toLocaleString("en-GH")}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {TRANSACTION_TYPE_LABELS[tx.type]}
                     </TableCell>
-                    <TableCell className="max-w-md truncate text-muted-foreground">
+                    <TableCell className="hidden max-w-md truncate text-muted-foreground sm:table-cell">
                       {tx.description}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-right font-medium">
@@ -226,6 +227,8 @@ export function ReportsPage() {
           )}
         </CardContent>
       </Card>
+
+      <AiUsageCard />
     </div>
   );
 }
