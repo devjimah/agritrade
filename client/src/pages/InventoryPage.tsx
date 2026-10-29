@@ -84,7 +84,7 @@ export function InventoryPage() {
         </Card>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.85fr_1.15fr]">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Crop mix</CardTitle>

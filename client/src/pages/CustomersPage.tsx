@@ -153,8 +153,8 @@ export function CustomersPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead className="hidden sm:table-cell">Location</TableHead>
+                  <TableHead className="hidden md:table-cell">Notes</TableHead>
                   <TableHead className="w-16" />
                 </TableRow>
               </TableHeader>
@@ -169,13 +169,13 @@ export function CustomersPage() {
                         {customer.fullName}
                       </Link>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <span className="inline-flex items-center gap-2">
                         <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                         {customer.phone}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       {customer.location ? (
                         <span className="inline-flex items-center gap-2">
                           <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
@@ -185,7 +185,7 @@ export function CustomersPage() {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="max-w-xs truncate text-muted-foreground">
+                    <TableCell className="hidden max-w-xs truncate text-muted-foreground md:table-cell">
                       {customer.notes || "-"}
                     </TableCell>
                     <TableCell>

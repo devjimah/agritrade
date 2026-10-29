@@ -191,9 +191,9 @@ export function RepaymentClaimsQueuePage() {
                 <TableRow>
                   <TableHead>Farmer</TableHead>
                   <TableHead>Bags claimed</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-48" />
+                  <TableHead className="hidden sm:table-cell">Submitted</TableHead>
+                  <TableHead className="hidden sm:table-cell">Status</TableHead>
+                  <TableHead className="sm:w-48" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -209,8 +209,8 @@ export function RepaymentClaimsQueuePage() {
                       <p className="text-xs text-muted-foreground">{claim.farmerId.phone}</p>
                     </TableCell>
                     <TableCell>{claim.bagsClaimed}</TableCell>
-                    <TableCell>{new Date(claim.createdAt).toLocaleDateString("en-GH")}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">{new Date(claim.createdAt).toLocaleDateString("en-GH")}</TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <span
                         className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[claim.status]}`}
                       >

@@ -151,8 +151,8 @@ export function FarmersPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
-                  <TableHead>Village</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead className="hidden sm:table-cell">Village</TableHead>
+                  <TableHead className="hidden md:table-cell">Notes</TableHead>
                   <TableHead className="w-16" />
                 </TableRow>
               </TableHeader>
@@ -164,13 +164,13 @@ export function FarmersPage() {
                         {farmer.fullName}
                       </Link>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <span className="inline-flex items-center gap-2">
                         <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                         {farmer.phone}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       {farmer.village ? (
                         <span className="inline-flex items-center gap-2">
                           <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
@@ -180,7 +180,7 @@ export function FarmersPage() {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="max-w-xs truncate text-muted-foreground">
+                    <TableCell className="hidden max-w-xs truncate text-muted-foreground md:table-cell">
                       {farmer.notes || "-"}
                     </TableCell>
                     <TableCell>

@@ -63,7 +63,7 @@ export function DashboardPage() {
         <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="p-5 sm:p-7">
             <p className="text-sm font-medium uppercase text-primary">Operations snapshot</p>
-            <h2 className="mt-2 max-w-2xl text-3xl font-semibold leading-tight">
+            <h2 className="mt-2 max-w-2xl text-2xl font-semibold leading-tight sm:text-3xl">
               Know which farmers owe bags and which cereals are ready to sell.
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -120,7 +120,7 @@ export function DashboardPage() {
         </p>
       )}
 
-      <section className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_0.65fr]">
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Latest advances</CardTitle>
@@ -138,9 +138,9 @@ export function DashboardPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Farmer</TableHead>
-                    <TableHead>Crop</TableHead>
+                    <TableHead className="hidden sm:table-cell">Crop</TableHead>
                     <TableHead>Amount</TableHead>
-                    <TableHead>Bags</TableHead>
+                    <TableHead className="hidden sm:table-cell">Bags</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -150,9 +150,9 @@ export function DashboardPage() {
                       <TableCell className="font-medium">
                         {typeof advance.farmerId === "string" ? "Farmer" : advance.farmerId.fullName}
                       </TableCell>
-                      <TableCell>{CROP_LABELS[advance.cropType]}</TableCell>
-                      <TableCell>{formatGHS(advance.amountGiven)}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">{CROP_LABELS[advance.cropType]}</TableCell>
+                      <TableCell className="whitespace-nowrap">{formatGHS(advance.amountGiven)}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         {advance.bagsRepaid}/{advance.expectedBags}
                       </TableCell>
                       <TableCell>

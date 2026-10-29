@@ -221,7 +221,7 @@ export function FarmerDetailPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium uppercase text-primary">Farmer account</p>
-            <h2 className="mt-2 text-3xl font-semibold">{farmer.fullName}</h2>
+            <h2 className="mt-2 text-2xl font-semibold sm:text-3xl">{farmer.fullName}</h2>
             <p className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <Phone className="h-4 w-4" /> {farmer.phone}
@@ -230,7 +230,7 @@ export function FarmerDetailPage() {
             </p>
             {farmer.notes && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{farmer.notes}</p>}
           </div>
-          <div className="flex gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <Button variant="outline" onClick={openSetPin}>
               <KeyRound className="mr-1 h-4 w-4" /> Set portal PIN
             </Button>
@@ -265,32 +265,32 @@ export function FarmerDetailPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
+                  <TableHead className="hidden sm:table-cell">Date</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Crop</TableHead>
-                  <TableHead>Bags repaid</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead className="whitespace-normal sm:whitespace-nowrap">Bags repaid</TableHead>
+                  <TableHead className="hidden sm:table-cell">Status</TableHead>
+                  <TableHead className="hidden md:table-cell">Notes</TableHead>
                   <TableHead className="w-24" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {advances.map((advance) => (
                   <TableRow key={advance._id}>
-                    <TableCell>{new Date(advance.createdAt).toLocaleDateString("en-GH")}</TableCell>
-                    <TableCell className="font-medium">{formatGHS(advance.amountGiven)}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{new Date(advance.createdAt).toLocaleDateString("en-GH")}</TableCell>
+                    <TableCell className="whitespace-nowrap font-medium">{formatGHS(advance.amountGiven)}</TableCell>
                     <TableCell>{CROP_LABELS[advance.cropType]}</TableCell>
                     <TableCell>
                       {advance.bagsRepaid} / {advance.expectedBags}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <span
                         className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[advance.repaymentStatus]}`}
                       >
                         {STATUS_LABELS[advance.repaymentStatus]}
                       </span>
                     </TableCell>
-                    <TableCell className="max-w-xs truncate text-muted-foreground">
+                    <TableCell className="hidden max-w-xs truncate text-muted-foreground md:table-cell">
                       {advance.notes || "-"}
                     </TableCell>
                     <TableCell>

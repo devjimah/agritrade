@@ -277,12 +277,12 @@ export function CustomerDetailPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
+                  <TableHead className="hidden sm:table-cell">Date</TableHead>
                   <TableHead>Crop</TableHead>
-                  <TableHead>Bags</TableHead>
-                  <TableHead>Price/bag</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Paid</TableHead>
+                  <TableHead className="hidden sm:table-cell">Bags</TableHead>
+                  <TableHead className="hidden sm:table-cell">Price/bag</TableHead>
+                  <TableHead className="hidden sm:table-cell">Total</TableHead>
+                  <TableHead className="hidden sm:table-cell">Paid</TableHead>
                   <TableHead>Balance</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-20" />
@@ -291,13 +291,13 @@ export function CustomerDetailPage() {
               <TableBody>
                 {sales.map((sale) => (
                   <TableRow key={sale._id}>
-                    <TableCell>{new Date(sale.createdAt).toLocaleDateString("en-GH")}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{new Date(sale.createdAt).toLocaleDateString("en-GH")}</TableCell>
                     <TableCell>{CROP_LABELS[sale.cropType]}</TableCell>
-                    <TableCell>{sale.bagsTaken}</TableCell>
-                    <TableCell>{formatGHS(sale.pricePerBag)}</TableCell>
-                    <TableCell className="font-medium">{formatGHS(sale.totalAmount)}</TableCell>
-                    <TableCell>{formatGHS(sale.amountPaid)}</TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="hidden sm:table-cell">{sale.bagsTaken}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{formatGHS(sale.pricePerBag)}</TableCell>
+                    <TableCell className="hidden font-medium sm:table-cell">{formatGHS(sale.totalAmount)}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{formatGHS(sale.amountPaid)}</TableCell>
+                    <TableCell className="whitespace-nowrap font-medium">
                       {formatGHS(sale.balanceRemaining)}
                     </TableCell>
                     <TableCell>

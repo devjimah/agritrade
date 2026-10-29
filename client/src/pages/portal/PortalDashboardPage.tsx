@@ -121,7 +121,7 @@ export function PortalDashboardPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
+                  <TableHead className="hidden sm:table-cell">Date</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Crop</TableHead>
                   <TableHead>Bags repaid</TableHead>
@@ -131,8 +131,8 @@ export function PortalDashboardPage() {
               <TableBody>
                 {advances.map((advance) => (
                   <TableRow key={advance._id}>
-                    <TableCell>{new Date(advance.createdAt).toLocaleDateString("en-GH")}</TableCell>
-                    <TableCell className="font-medium">{formatGHS(advance.amountGiven)}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{new Date(advance.createdAt).toLocaleDateString("en-GH")}</TableCell>
+                    <TableCell className="whitespace-nowrap font-medium">{formatGHS(advance.amountGiven)}</TableCell>
                     <TableCell>{CROP_LABELS[advance.cropType]}</TableCell>
                     <TableCell>
                       {advance.bagsRepaid} / {advance.expectedBags}
