@@ -19,6 +19,9 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+// Notebook photos arrive as base64; parse that one route with a bigger limit
+// first (express.json skips bodies that are already parsed).
+app.use("/api/ai/import-notebook", express.json({ limit: "8mb" }));
 app.use(express.json({ limit: "100kb" }));
 
 app.use("/api", routes);

@@ -10,6 +10,7 @@ import customerRoute from "./customer.route";
 import creditSaleRoute from "./credit-sale.route";
 import paymentRoute from "./payment.route";
 import reportRoute, { transactionRouter } from "./report.route";
+import aiRoute from "./ai.route";
 
 const router = Router();
 
@@ -29,5 +30,6 @@ router.use("/credit-sales", creditSaleRoute);
 router.use("/payments", paymentRoute);
 router.use("/reports", reportRoute);
 router.use("/transactions", transactionRouter);
+router.use("/ai", aiRoute);
 
 export default router;
